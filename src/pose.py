@@ -48,13 +48,53 @@ def get_pose(static: bool = True, complexity: int = 1, min_conf: float = 0.5):
     return _POSE
 
 
+def aspect_correct(P: np.ndarray, width: int, height: int) -> np.ndarray:
+    """Rescale x so that one unit of x equals one unit of y.
+
+    THIS IS NOT COSMETIC. MediaPipe normalises x against the image *width* and
+    y against the image *height*, independently. On a square image that is
+    harmless, but on a 9:16 phone photo the x axis is stretched by 1/0.45 ≈ 2.2
+    relative to y — so every angle, every bounding-box ratio and every limb
+    direction computed from raw landmarks is wrong.
+
+    Concretely, a standing subject in a portrait photo measured a
+    height/width ratio of 1.38 where the training corpus (built in a square
+    frame) puts standing at 3.01 ± 1.3. The subject was landing far outside the
+    training distribution purely because of the photo's shape, and was being
+    classified as Walking.
+
+    The x axis is scaled about the frame centre, which keeps the *vertical*
+    coordinate untouched — important, because pelvis height is interpreted as a
+    genuine "how high in the room" and must stay a fraction of frame height.
+    """
+    P = P.copy()
+    s = float(width) / float(height)
+    P[:, 0] = (P[:, 0] - 0.5) * s + 0.5
+    return P
+
+
+def aspect_uncorrect(P: np.ndarray, width: int, height: int) -> np.ndarray:
+    """Inverse of ``aspect_correct`` — back to MediaPipe's raw normalisation.
+
+    Needed whenever landmarks are drawn *onto the original photograph*: the
+    overlay has to line up with the pixels, and the corrected coordinates
+    deliberately do not. Analysis uses corrected coordinates; rendering on a
+    real frame uses these.
+    """
+    P = P.copy()
+    s = float(width) / float(height)
+    P[:, 0] = (P[:, 0] - 0.5) / s + 0.5
+    return P
+
+
 def estimate(frame_bgr: np.ndarray) -> tuple[np.ndarray, np.ndarray] | None:
     """Run pose estimation on one BGR frame.
 
     Returns
     -------
-    ``(landmarks (33,2) float32 normalised, visibility (33,) float32)``
-    or ``None`` when no person is detected.
+    ``(landmarks (33,2) float32, visibility (33,) float32)`` with the landmarks
+    already **aspect-corrected** (see ``aspect_correct``), or ``None`` when no
+    person is detected.
     """
     import cv2
 
@@ -66,10 +106,11 @@ def estimate(frame_bgr: np.ndarray) -> tuple[np.ndarray, np.ndarray] | None:
     if not res.pose_landmarks:
         return None
 
+    h, w = frame_bgr.shape[:2]
     lm = res.pose_landmarks.landmark
     P = np.array([[p.x, p.y] for p in lm], dtype=np.float32)
     V = np.array([p.visibility for p in lm], dtype=np.float32)
-    return P, V
+    return aspect_correct(P, w, h), V
 
 
 def available() -> tuple[bool, str]:

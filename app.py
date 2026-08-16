@@ -87,6 +87,21 @@ def estimate_pose(frame_bgr: np.ndarray):
     return pose.estimate(frame_bgr)
 
 
+def draw_on_photo(frame: np.ndarray, P: np.ndarray, V: np.ndarray, accent=None):
+    """Overlay a skeleton on a REAL photograph.
+
+    ``pose.estimate`` returns aspect-corrected landmarks — correct for geometry,
+    wrong for pixels. Drawing them directly would render the skeleton
+    horizontally squashed against the actual body, which looks like a broken
+    pose estimator. The correction is undone here, and only here; synthetic
+    skeletons (Live Simulation) are already in square-frame space and call
+    ``draw_overlay`` directly.
+    """
+    from src import pose
+    h, w = frame.shape[:2]
+    return draw_overlay(frame, pose.aspect_uncorrect(P, w, h), V, accent=accent)
+
+
 # ==========================================================================
 # presentation helpers
 # ==========================================================================
@@ -226,9 +241,9 @@ with st.sidebar:
     st.markdown("#### Detection thresholds")
     cnn_t = st.slider("CNN fall probability", 0.10, 0.95, 0.55, 0.05,
                       help="Minimum network confidence for a fall vote.")
-    bio_t = st.slider("Biomechanical score", 0.10, 0.95, 0.42, 0.02,
+    bio_t = st.slider("Biomechanical score", 0.05, 0.95, 0.25, 0.02,
                       help="Minimum rule-based score for the corroborating vote. "
-                           "0.42 is calibrated on held-out data.")
+                           "0.25 is calibrated on held-out data.")
     persist = st.slider("Persistence (frames)", 1, 12, 4, 1,
                         help="Consecutive corroborated frames before EMERGENCY.")
 
@@ -284,7 +299,7 @@ def render_result(frame: np.ndarray, pred, caption: str) -> None:
 
     left, right = st.columns([1.25, 1], gap="large")
     with left:
-        overlay = draw_overlay(frame, pred.landmarks, pred.visibility)
+        overlay = draw_on_photo(frame, pred.landmarks, pred.visibility)
         st.image(cv2.cvtColor(overlay, cv2.COLOR_BGR2RGB), caption=caption,
                  use_container_width=True)
     with right:
@@ -525,9 +540,9 @@ with tab_vid:
                     _, colour = LEVEL_STYLE[pred.level]
                     bgr = tuple(int(colour.lstrip("#")[i:i + 2], 16)
                                 for i in (4, 2, 0))
-                    ann = draw_overlay(frame, P, V,
-                                       accent=bgr if pred.level in (ALERT, EMERGENCY)
-                                       else None)
+                    ann = draw_on_photo(frame, P, V,
+                                        accent=bgr if pred.level in (ALERT, EMERGENCY)
+                                        else None)
                     cv2.putText(ann, f"{pred.label}  {pred.confidence:.0%}",
                                 (14, 32), cv2.FONT_HERSHEY_SIMPLEX, 0.78,
                                 bgr, 2, cv2.LINE_AA)

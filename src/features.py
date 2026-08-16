@@ -194,10 +194,30 @@ def biomechanical_fall_score(P: np.ndarray, vis: np.ndarray) -> float:
     frame, and loss of leg verticality.
     """
     c = clinical_summary(P, vis)
+
+    # --- what the posture LOOKS like ------------------------------------
     trunk = np.clip((c["torso_angle"] - 45.0) / 35.0, 0, 1)          # >45° tilting
     aspect = np.clip((1.8 - c["aspect_ratio"]) / 1.0, 0, 1)          # <1.8 lying down
+    shape = 0.55 * trunk + 0.45 * aspect
+
+    # --- whether the body is actually DOWN ------------------------------
     low = np.clip((0.38 - c["pelvis_height"]) / 0.22, 0, 1)          # pelvis near floor
     legs = np.clip((0.75 - c["leg_verticality"]) / 0.45, 0, 1)       # legs not under body
+    down = max(low, legs)
 
-    score = 0.30 * trunk + 0.22 * aspect + 0.33 * low + 0.15 * legs
+    # These two blocks are combined MULTIPLICATIVELY, not additively, and that
+    # is the whole point of the rule. Summing them let trunk angle and aspect
+    # ratio alone reach 0.52 — above the 0.42 corroboration threshold — so a
+    # deep bend with the pelvis still at standing height and the legs still
+    # vertical could corroborate a fall. It did exactly that on a real
+    # photograph of someone picking a pen off the floor: trunk 83°, aspect
+    # 0.90, but pelvis 0.46 and leg verticality 0.94, scoring 0.50 and raising
+    # a false ALERT.
+    #
+    # A person whose pelvis is at standing height and whose legs are directly
+    # beneath them is *not on the floor*, however bent their back is. So the
+    # postural evidence is gated by the descent evidence: with no descent at
+    # all the score cannot exceed 0.25 * shape, which is below threshold even
+    # for a maximally fall-shaped posture.
+    score = shape * (0.25 + 0.75 * down)
     return float(np.clip(score, 0.0, 1.0))

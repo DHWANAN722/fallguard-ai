@@ -87,15 +87,13 @@ class FallDetector:
         self,
         model_dir: str,
         cnn_prob_threshold: float = 0.55,
-        # 0.42 is calibrated, not guessed. On held-out data the rule-based score
-        # separates cleanly — falls sit at median 0.74 (5th percentile 0.44)
-        # while every non-fall class sits below 0.41 at the 95th percentile.
-        # 0.42 corroborates ~97% of true falls at a ~1% non-fall false vote,
-        # and because an alert additionally requires the CNN to agree — and the
-        # CNN has 100% fall precision on test — the *joint* false-alarm rate is
-        # effectively zero. Raising it to 0.50 would silently drop 6% of real
-        # falls to WATCH for no practical gain in specificity.
-        biomech_threshold: float = 0.42,
+        # Calibrated, not guessed, and re-calibrated after the rule became
+        # multiplicative (see features.biomechanical_fall_score). On held-out
+        # data 0.25 corroborates 94% of true falls at a 0.8% false vote on
+        # non-falls; because an alert ALSO requires the CNN to agree, and the
+        # CNN has 100% fall precision on test, the joint false-alarm rate is
+        # effectively zero.
+        biomech_threshold: float = 0.25,
         persistence_frames: int = 4,
         impact_velocity: float = 0.55,
         # Must be >= the maximum number of frames the caller will analyse.
