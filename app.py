@@ -601,10 +601,13 @@ with tab_model:
     meta = detector.meta
 
     c = st.columns(4)
-    c[0].markdown(metric_tile("CNN parameters", f"{meta['n_parameters']:,}", theme.CYAN),
+    c[0].markdown(metric_tile("CNN parameters",
+                              f"{meta.get('n_parameters', 0):,}", theme.CYAN),
                   unsafe_allow_html=True)
+    # tolerate a labels.json written by the notebook, which carries fewer fields
+    n_train = meta.get("dataset", {}).get("split", {}).get("train")
     c[1].markdown(metric_tile("Training samples",
-                              f"{meta['dataset']['split']['train']:,}", theme.VIOLET),
+                              f"{n_train:,}" if n_train else "—", theme.VIOLET),
                   unsafe_allow_html=True)
     if m:
         # the deployed model is whichever entry is the neural one; look it up by

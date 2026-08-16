@@ -15,7 +15,7 @@
   "n_parameters": 197925,
   "epochs_run": 22,
   "best_val_accuracy": 0.9890000224113464,
-  "numpy_keras_max_delta": 1.7285346984863281e-06,
+  "numpy_keras_max_delta": 1.0728836059570312e-06,
   "train_seconds": 218.2,
   "dataset": {
     "total": 20000,

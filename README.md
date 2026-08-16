@@ -13,9 +13,9 @@ Streamlit dashboard.
 
 | Metric | Value |
 |---|---|
-| Validation accuracy | **98.73 %** |
-| Test accuracy | **98.67 %** |
-| Macro F1 | **0.9867** |
+| Validation accuracy | **98.90 %** |
+| Test accuracy | **98.37 %** |
+| Macro F1 | **0.9837** |
 | **Fall recall** | **1.000** — no fall missed |
 | **Fall precision** | **1.000** — nothing else mistaken for a fall |
 | False alarms on bending | **0** |
@@ -23,11 +23,12 @@ Streamlit dashboard.
 | Model size | 197 925 parameters · 0.8 MB |
 
 Evaluated on a held-out test split of 3 000 samples (600 per class) that no
-model saw during training or model selection.
+model saw during training or model selection. Weights are selected on the
+**validation** split; the test split is scored exactly once, at the end.
 
 | Model | Accuracy | Macro F1 | Fall recall |
 |---|---|---|---|
-| **Hybrid CNN** (deployed) | **0.9867** | **0.9867** | 1.000 |
+| **Hybrid CNN** (deployed) | **0.9837** | **0.9837** | 1.000 |
 | Random Forest | 0.9827 | 0.9827 | 1.000 |
 | SVM (RBF) | 0.9533 | 0.9535 | 1.000 |
 

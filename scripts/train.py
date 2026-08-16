@@ -392,7 +392,17 @@ def main() -> None:
                              ("accuracy", "loss", "val_accuracy", "val_loss", "lr")}}
 
     if state["done"]:
-        print("\ntraining already complete — finalising only", flush=True)
+        # Finalise from the BEST-VALIDATION weights, never from the last-epoch
+        # checkpoint. `checkpoint.keras` is only a resume point; loading it here
+        # would deploy a different model than the one model selection chose —
+        # and if you then picked between them by test accuracy, that is test-set
+        # leakage. Selection is a validation-set decision, full stop.
+        best = os.path.join(MODELS, "best.keras")
+        if os.path.exists(best):
+            model = tf.keras.models.load_model(best)
+            print(f"\nloaded best-validation weights "
+                  f"(val_accuracy {state['best']:.4f})", flush=True)
+        print("training already complete — finalising only", flush=True)
         finalize(model, corpus, R, F, Y, state, args)
         return
 

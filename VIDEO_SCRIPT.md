@@ -42,7 +42,7 @@ Read the **bold** lines aloud; the italics are stage directions.
 > Then a separate, transparent geometric rule has to agree before any alert is
 > raised.**
 >
-> **Headline result: 98.7% accuracy on held-out test data, with perfect
+> **Headline result: 98.4% accuracy on held-out test data, with perfect
 > precision and perfect recall on the fall class, and zero false alarms on
 > bending.**
 
@@ -200,7 +200,7 @@ Read the **bold** lines aloud; the italics are stage directions.
 *Point at the model comparison table.*
 
 > **The brief recommended a CNN, but I didn't want to just assert that, so I
-> trained three models on identical splits. The hybrid CNN at 98.7%, a Random
+> trained three models on identical splits. The hybrid CNN at 98.4%, a Random
 > Forest at 98.3%, and an SVM at 95.3%.**
 >
 > **And there's a story here. My first version was a pure CNN — it got 91%, and
@@ -234,7 +234,7 @@ Read the **bold** lines aloud; the italics are stage directions.
 
 *Point at the training curves.*
 
-> **Training converged at epoch 22 with validation accuracy just under 99%.**
+> **Training converged at epoch 22 with validation accuracy of 98.9%.**
 
 *Optional but strong — switch to notebook §4.1.*
 
@@ -270,7 +270,7 @@ Read the **bold** lines aloud; the italics are stage directions.
 
 *Back to the dashboard.*
 
-> **To summarise: 98.7% accuracy, perfect precision and recall on falls, zero
+> **To summarise: 98.4% accuracy, perfect precision and recall on falls, zero
 > false alarms on bending, and about 1.3 milliseconds per frame.**
 >
 > **But the number I'd actually defend is the false-alarm rate — because that's

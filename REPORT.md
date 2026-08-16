@@ -10,7 +10,7 @@ CRS Artificial Intelligence · Y2C1 Machine Learning and Deep Learning
 FallGuard AI detects elderly falls from images and video by reducing each frame
 to 33 body landmarks with MediaPipe BlazePose and classifying the resulting
 skeleton with a hybrid convolutional network. On a held-out test split of 3 000
-samples it reaches **98.67 % accuracy** with **1.000 precision and 1.000 recall
+samples it reaches **98.37 % accuracy** with **1.000 precision and 1.000 recall
 on the fall class**, and raises **zero false alarms** on bending — the posture
 that defeats most deployed fall detectors. The system is live as a Streamlit
 dashboard offering image analysis, video monitoring, scenario simulation and
@@ -45,7 +45,7 @@ trained on identical splits:
 
 | Model | Input | Accuracy | Macro F1 | Fall recall |
 |---|---|---|---|---|
-| **Hybrid CNN** | skeleton tensor **+** geometric features | **0.9867** | **0.9867** | 1.000 |
+| **Hybrid CNN** | skeleton tensor **+** geometric features | **0.9837** | **0.9837** | 1.000 |
 | Random Forest | 126 geometric features | 0.9827 | 0.9827 | 1.000 |
 | SVM (RBF) | 126 geometric features | 0.9533 | 0.9535 | 1.000 |
 
@@ -218,7 +218,7 @@ silhouette *identical* to standing. Those frames carry no signal distinguishing
 the classes, so labelling them "Walking" injected irreducible label noise and
 capped achievable accuracy. Restricting the sampled phase to the swing portion
 of the gait cycle removed the contradiction and lifted accuracy from 93.3 % to
-98.7 %. When two classes refuse to separate, check that the labels are
+98.4 %. When two classes refuse to separate, check that the labels are
 self-consistent before blaming the model.
 
 ---
@@ -232,12 +232,17 @@ the test score is not itself the product of repeated model selection.
 
 | Metric | Validation (n = 3 000) | Test (n = 3 000) |
 |---|---|---|
-| Accuracy | 0.9873 | 0.9867 |
-| Precision (macro) | 0.9874 | 0.9868 |
-| Recall (macro) | 0.9873 | 0.9867 |
-| F1 (macro) | 0.9873 | 0.9867 |
-| Fall precision | 1.0000 | 1.0000 |
+| Accuracy | 0.9890 | 0.9837 |
+| Precision (macro) | 0.9890 | 0.9838 |
+| Recall (macro) | 0.9890 | 0.9837 |
+| F1 (macro) | 0.9890 | 0.9837 |
+| Fall precision | 0.9967 | 1.0000 |
 | Fall recall | 1.0000 | 1.0000 |
+
+Weights are chosen by **validation** accuracy and the test split is scored once,
+at the end. The 0.5-point validation-to-test drop is the expected cost of having
+used validation for model selection — reporting the higher number as the
+headline would be selection bias.
 
 Full per-class reports for **both** splits are in
 `reports/classification_report.txt`; both confusion matrices are in
@@ -248,20 +253,20 @@ Full per-class reports for **both** splits are in
 | Class | Precision | Recall | F1 | Support |
 |---|---|---|---|---|
 | **Fall Detected** | **1.0000** | **1.0000** | **1.0000** | 600 |
-| Walking | 0.9593 | 0.9833 | 0.9712 | 600 |
+| Walking | 0.9605 | 0.9733 | 0.9669 | 600 |
 | Sitting | 1.0000 | 1.0000 | 1.0000 | 600 |
-| Standing | 0.9765 | 0.9700 | 0.9732 | 600 |
-| Normal Activity | 0.9983 | 0.9800 | 0.9891 | 600 |
+| Standing | 0.9604 | 0.9700 | 0.9652 | 600 |
+| Normal Activity | 0.9983 | 0.9750 | 0.9865 | 600 |
 
 ### 6.3 Confusion matrix
 
 | actual ↓ / predicted → | Fall | Walking | Sitting | Standing | Normal |
 |---|---|---|---|---|---|
 | **Fall Detected** | **600** | 0 | 0 | 0 | 0 |
-| **Walking** | 0 | **590** | 0 | 10 | 0 |
+| **Walking** | 0 | **584** | 0 | 16 | 0 |
 | **Sitting** | 0 | 0 | **600** | 0 | 0 |
 | **Standing** | 0 | 17 | 0 | **582** | 1 |
-| **Normal Activity** | 0 | 8 | 0 | 4 | **588** |
+| **Normal Activity** | 0 | 7 | 0 | 8 | **585** |
 
 Reading it:
 
@@ -272,7 +277,7 @@ Reading it:
   system switched on.
 * **Normal Activity is never confused with Fall** — the bending false-alarm case
   is fully solved.
-* The residual error is Walking↔Standing (27 of 40 errors), which is
+* The residual error is Walking↔Standing (33 of 49 errors), which is
   irreducibly ambiguous from a single frame and is resolved temporally in the
   video path.
 
@@ -303,17 +308,17 @@ what is swept here.
 
 | Landmark jitter σ | Overall accuracy | Fall recall |
 |---|---|---|
-| 0.004 | 0.9510 | **1.0000** |
-| 0.010 | 0.9510 | **1.0000** |
-| 0.020 | 0.9370 | **1.0000** |
-| 0.035 | 0.8710 | **1.0000** |
-| 0.055 | 0.7820 | **1.0000** |
+| 0.004 | 0.9485 | **1.0000** |
+| 0.010 | 0.9438 | **1.0000** |
+| 0.020 | 0.9285 | **1.0000** |
+| 0.035 | 0.8862 | **1.0000** |
+| 0.055 | 0.7715 | **1.0000** |
 
 *(These runs add extra occlusion on top of the baseline augmentation, which is
-why overall accuracy starts below the 98.67 % headline.)*
+why overall accuracy starts below the 98.37 % headline.)*
 
 **Fall recall holds at 1.000 across a 14× sweep** while overall accuracy falls
-from 95 % to 78 %. That is the correct failure mode: as conditions degrade the
+from 95 % to 77 %. That is the correct failure mode: as conditions degrade the
 system loses the ability to distinguish walking from standing — which nobody is
 paged about — long before it loses the ability to detect that someone is on the
 floor.
@@ -333,7 +338,7 @@ The corroboration threshold was measured, not guessed:
 | Threshold | Falls corroborated | False vote on non-falls |
 |---|---|---|
 | 0.35 | 0.983 | 0.0280 |
-| **0.42** | **0.969** | **0.0119** |
+| **0.42** | **0.959** | **0.0113** |
 | 0.50 | 0.906 | 0.0022 |
 
 0.42 was selected. Because an alert *also* requires the CNN to agree, and the
@@ -433,7 +438,7 @@ colour, and the pulsing emergency animation respects
 
 ## Conclusion
 
-FallGuard AI achieves **98.67 % test accuracy with perfect precision and recall
+FallGuard AI achieves **98.37 % test accuracy with perfect precision and recall
 on the fall class and zero false alarms on bending**. The result rests less on
 the network than on three design choices: treating bending as a first-class
 category rather than an afterthought, requiring two independent detectors to

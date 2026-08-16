@@ -419,25 +419,50 @@ model = build_hybrid(img_shape=R["train"].shape[1:],
 model.summary()
 """),
 
-    code(r"""
-import tensorflow as tf
-
-callbacks = [
-    tf.keras.callbacks.EarlyStopping(monitor="val_accuracy", patience=10,
-                                     restore_best_weights=True, mode="max"),
-    tf.keras.callbacks.ReduceLROnPlateau(monitor="val_loss", factor=0.5,
-                                         patience=3, min_lr=1e-5),
-]
-
-history = model.fit(
-    [R["train"], Fs["train"]], Y["train"],
-    validation_data=([R["val"], Fs["val"]], Y["val"]),
-    epochs=60, batch_size=128, callbacks=callbacks, verbose=2,
-)
+    md(r"""
+Set `RETRAIN = True` to train from scratch (~5 minutes on a Colab CPU
+runtime). It defaults to `False` so that "Run all" reproduces the committed
+results in seconds by loading the weights this notebook produced — the training
+history is reloaded from `reports/metrics.json`, so every curve and metric below
+is the real one, not a fresh short run.
 """),
 
     code(r"""
-h = history.history
+import tensorflow as tf
+
+RETRAIN = False
+CKPT = os.path.join(ROOT, "models", "best.keras")
+
+if RETRAIN or not os.path.exists(CKPT):
+    callbacks = [
+        tf.keras.callbacks.EarlyStopping(monitor="val_accuracy", patience=10,
+                                         restore_best_weights=True, mode="max"),
+        tf.keras.callbacks.ReduceLROnPlateau(monitor="val_loss", factor=0.5,
+                                             patience=3, min_lr=1e-5),
+    ]
+    history = model.fit(
+        [R["train"], Fs["train"]], Y["train"],
+        validation_data=([R["val"], Fs["val"]], Y["val"]),
+        epochs=60, batch_size=128, callbacks=callbacks, verbose=2,
+    )
+    h = history.history
+    mu_used, sd_used = mu, sd
+else:
+    model = tf.keras.models.load_model(CKPT)
+    h = json.load(open(os.path.join(ROOT, "reports", "metrics.json")))["history"]
+    # reuse the standardiser the weights were fitted with, not a fresh one
+    st = json.load(open(os.path.join(ROOT, "models", "train_state.json")))
+    mu_used = np.asarray(st["feat_mean"], np.float32)
+    sd_used = np.maximum(np.asarray(st["feat_std"], np.float32), 1e-6)
+    Fs = {k: (v - mu_used) / sd_used for k, v in F.items()}
+    print(f"loaded trained model  ({len(h['loss'])} epochs, "
+          f"best val_accuracy {max(h['val_accuracy']):.4f})")
+
+print("final train accuracy      %.4f" % h["accuracy"][-1])
+print("best  validation accuracy %.4f" % max(h["val_accuracy"]))
+"""),
+
+    code(r"""
 fig, axes = plt.subplots(1, 2, figsize=(14, 5))
 for ax, keys, title, ylab in (
     (axes[0], ("accuracy", "val_accuracy"), "Model Accuracy", "accuracy"),
@@ -733,7 +758,7 @@ from src.cnn_numpy import NumpyHybrid
 os.makedirs(os.path.join(ROOT, "models"), exist_ok=True)
 npz = os.path.join(ROOT, "models", "fallguard_cnn.npz")
 model.save(os.path.join(ROOT, "models", "fallguard_cnn.keras"))
-export_hybrid_npz(model, mu, sd, npz)
+export_hybrid_npz(model, mu_used, sd_used, npz)
 
 rt = NumpyHybrid(npz)
 delta = np.abs(rt.predict(R["test"][:256], F["test"][:256])
@@ -742,10 +767,16 @@ print(f"max |Δ probability| between NumPy runtime and Keras: {delta:.2e}")
 assert delta < 1e-4, "export verification failed"
 print("export verified ✓")
 
-json.dump({"classes": CLASS_NAMES, "fall_index": 0,
-           "input_shape": list(R["train"].shape[1:]),
-           "n_parameters": int(model.count_params())},
-          open(os.path.join(ROOT, "models", "labels.json"), "w"), indent=2)
+# Serving metadata: merge rather than overwrite. scripts/train.py writes a
+# richer labels.json (dataset composition, epochs, export delta) and the
+# dashboard reads those fields — clobbering it here would break the app.
+lp = os.path.join(ROOT, "models", "labels.json")
+meta = json.load(open(lp)) if os.path.exists(lp) else {}
+meta.update({"classes": CLASS_NAMES, "fall_index": 0,
+             "input_shape": list(R["train"].shape[1:]),
+             "n_parameters": int(model.count_params())})
+json.dump(meta, open(lp, "w"), indent=2)
+print("serving metadata:", ", ".join(sorted(meta)))
 """),
 
     md(r"""
