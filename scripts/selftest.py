@@ -39,6 +39,26 @@ def main() -> None:
     print("FallGuard AI — self test")
     print("=" * 74)
 
+    # ------------------------------------------------------ committed samples
+    # Regression guard. Bundled samples are useless if .gitignore quietly drops
+    # them: the app works locally, the deployed copy shows no button, and the
+    # commit message says otherwise. This caught `!assets/*.mp4` failing to
+    # reach assets/samples/.
+    print("[0] every bundled sample is tracked by git")
+    import subprocess
+    sdir = os.path.join(ROOT, "assets", "samples")
+    if os.path.isdir(sdir):
+        try:
+            tracked = set(subprocess.check_output(
+                ["git", "ls-files", "assets/samples"], cwd=ROOT,
+                text=True).split())
+            for f in sorted(os.listdir(sdir)):
+                rel = f"assets/samples/{f}"
+                check(f"tracked: {f}", rel in tracked,
+                      "" if rel in tracked else "on disk but NOT committed")
+        except Exception as exc:                       # pragma: no cover
+            print(f"       (git unavailable: {exc})")
+
     # ---------------------------------------------------------------- files
     print("\n[1] artefacts")
     for rel in ("models/fallguard_cnn.npz", "models/labels.json",

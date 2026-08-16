@@ -28,7 +28,11 @@ venv/
 env/
 .DS_Store
 
+# Stray recordings are ignored, but bundled demo clips must ship.
+# NOTE: a negation only cancels the ignore for paths it actually matches --
+# `!assets/*.mp4` does NOT reach assets/samples/, which silently kept the demo
+# video out of a commit whose message claimed it was included. Use `**`.
 *.mp4
-!assets/*.mp4
+!assets/**/*.mp4
 
 .streamlit/secrets.toml
