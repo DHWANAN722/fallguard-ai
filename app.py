@@ -150,6 +150,59 @@ def bgr_to_png_b64(img: np.ndarray) -> str:
     return base64.b64encode(buf).decode() if ok else ""
 
 
+# ==========================================================================
+# bundled demo samples
+# ==========================================================================
+SAMPLES = os.path.join(ROOT, "assets", "samples")
+
+IMAGE_EXT = {".jpg", ".jpeg", ".png", ".bmp", ".webp"}
+VIDEO_EXT = {".mp4", ".mov", ".avi", ".mkv", ".webm"}
+
+
+@st.cache_data(show_spinner=False)
+def list_samples(kind: str) -> list[tuple[str, str]]:
+    """Discover bundled demo media as ``[(label, path), ...]``.
+
+    Files are found by scanning the folder rather than being hard-coded, so
+    dropping a new clip into ``assets/samples/`` publishes it with no code
+    change. A leading ``NN_`` orders them; the rest of the filename becomes the
+    button label, so ``02_bending_over.jpg`` shows as "Bending over".
+    """
+    if not os.path.isdir(SAMPLES):
+        return []
+    want = IMAGE_EXT if kind == "image" else VIDEO_EXT
+    out = []
+    for f in sorted(os.listdir(SAMPLES)):
+        stem, ext = os.path.splitext(f)
+        if ext.lower() not in want:
+            continue
+        label = stem.split("_", 1)[-1] if stem[:2].isdigit() else stem
+        out.append((label.replace("_", " ").replace("-", " ").capitalize(),
+                    os.path.join(SAMPLES, f)))
+    return out
+
+
+def sample_picker(kind: str, key: str) -> str | None:
+    """Render the sample buttons. Returns a chosen path, or None.
+
+    The choice is held in session state so it survives the rerun that Streamlit
+    performs on every widget interaction — without that, changing a sidebar
+    slider would silently clear the user's selection mid-demo.
+    """
+    samples = list_samples(kind)
+    if not samples:
+        return None
+
+    st.markdown(
+        '<div class="fg-mono" style="margin:.2rem 0 .5rem">'
+        'No file to hand? Try a bundled sample:</div>', unsafe_allow_html=True)
+    cols = st.columns(len(samples))
+    for col, (label, path) in zip(cols, samples):
+        if col.button(label, key=f"{key}_{label}", use_container_width=True):
+            st.session_state[f"{key}_chosen"] = path
+    return st.session_state.get(f"{key}_chosen")
+
+
 def synth_frame(P: np.ndarray, V: np.ndarray, size: int = 460) -> np.ndarray:
     """Dark studio backdrop for skeletons that have no source photograph."""
     f = np.full((size, size, 3), 12, dtype=np.uint8)
@@ -335,10 +388,21 @@ with tab_img:
     up = st.file_uploader("Image", type=["jpg", "jpeg", "png", "bmp", "webp"],
                           key="img_up", label_visibility="collapsed",
                           disabled=not ok_pose)
+    sample = sample_picker("image", "img_sample")
 
+    # an explicit upload always wins over a previously clicked sample
     if up is not None:
-        data = np.frombuffer(up.getvalue(), np.uint8)
-        frame = cv2.imdecode(data, cv2.IMREAD_COLOR)
+        st.session_state.pop("img_sample_chosen", None)
+        sample = None
+
+    if up is not None or sample:
+        if up is not None:
+            frame = cv2.imdecode(np.frombuffer(up.getvalue(), np.uint8),
+                                 cv2.IMREAD_COLOR)
+            source_name = up.name
+        else:
+            frame = cv2.imread(sample)
+            source_name = os.path.basename(sample) + "  (bundled sample)"
 
         if frame is None:
             st.error("Could not decode that image file.", icon="🚫")
@@ -360,7 +424,7 @@ with tab_img:
                 P, V = res
                 detector.reset()
                 pred = detector.predict(P, V, timestamp=0.0, temporal=False)
-                render_result(frame, pred, f"{up.name} · pose landmarks overlaid")
+                render_result(frame, pred, f"{source_name} · pose landmarks overlaid")
 
                 # The brief requires the monitoring counters to be visible on
                 # the dashboard; a user who only ever uploads a still should
@@ -398,8 +462,8 @@ with tab_img:
                             "by a deployed monitoring system.")
     else:
         st.info("Upload a photo of a person standing, sitting, walking, bending or "
-                "fallen. The system localises 33 body landmarks and classifies the "
-                "posture.", icon="ℹ️")
+                "fallen — or click a bundled sample above. The system localises 33 "
+                "body landmarks and classifies the posture.", icon="ℹ️")
 
 
 # ==========================================================================
@@ -410,12 +474,22 @@ with tab_vid:
     upv = st.file_uploader("Video", type=["mp4", "mov", "avi", "mkv", "webm"],
                            key="vid_up", label_visibility="collapsed",
                            disabled=not ok_pose)
+    vsample = sample_picker("video", "vid_sample")
 
     if upv is not None:
-        import tempfile
-        tmp = os.path.join(tempfile.gettempdir(), f"fg_in_{os.getpid()}_{upv.name}")
-        with open(tmp, "wb") as fh:
-            fh.write(upv.getvalue())
+        st.session_state.pop("vid_sample_chosen", None)
+        vsample = None
+
+    if upv is not None or vsample:
+        if upv is not None:
+            import tempfile
+            tmp = os.path.join(tempfile.gettempdir(),
+                               f"fg_in_{os.getpid()}_{upv.name}")
+            with open(tmp, "wb") as fh:
+                fh.write(upv.getvalue())
+        else:
+            # bundled samples are read in place — no need to copy them
+            tmp = vsample
 
         try:
             info = vid.probe(tmp)
@@ -525,7 +599,8 @@ with tab_vid:
                 st.markdown('<hr class="fg-rule">', unsafe_allow_html=True)
                 analytics_block(detector, "vid")
     else:
-        st.info("Upload a short clip (≤30 s works best). Frames are sampled at the "
+        st.info("Upload a short clip (≤30 s works best), or click a bundled sample "
+                "above. Frames are sampled at the "
                 "analysis rate set in the sidebar; a fall must persist across "
                 "consecutive frames, or show an impact-velocity signature, before "
                 "the system escalates to EMERGENCY.", icon="ℹ️")
