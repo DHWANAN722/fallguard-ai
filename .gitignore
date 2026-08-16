@@ -1,15 +1,24 @@
-# Derived artefacts — regenerate with `python scripts/train.py`
-data/cache/                    # 245 MB of rendered tensors; pure cache
-models/checkpoint.keras        # resumable-training scratch
-models/best.keras              # ditto
-models/train_state.json        # ditto
+# NOTE: git does NOT support trailing comments on a pattern line — the whole
+# line, comment included, is taken as the pattern. Every comment here is on its
+# own line for that reason. (An earlier version wrote
+# `data/cache/   # 245 MB of tensors`, which silently ignored nothing and got a
+# 164 MB file committed, which GitHub then rejected at push time.)
 
-# NOTE what is deliberately NOT ignored:
+# Derived artefacts — regenerate with `python scripts/train.py`
+# data/cache is ~245 MB of rendered tensors and is pure cache.
+data/cache/
+
+# Resumable-training scratch files.
+models/checkpoint.keras
+models/best.keras
+models/train_state.json
+
+# Deliberately NOT ignored, because the app or the submission needs them:
 #   models/fallguard_cnn.npz    the app cannot run without it (0.8 MB)
 #   models/labels.json          serving metadata
 #   models/fallguard_cnn.keras  archival Keras copy (2.4 MB)
-#   reports/*                   evaluation evidence for the submission
-#   data/fallguard_dataset.npz  the corpus itself (6.7 MB) — keeps results reproducible
+#   reports/                    evaluation evidence, incl. prediction panels
+#   data/fallguard_dataset.npz  the corpus itself (6.7 MB), keeps results reproducible
 
 __pycache__/
 *.py[cod]
@@ -18,6 +27,8 @@ __pycache__/
 venv/
 env/
 .DS_Store
+
 *.mp4
 !assets/*.mp4
+
 .streamlit/secrets.toml
