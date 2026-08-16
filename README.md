@@ -7,7 +7,7 @@ Streamlit dashboard.
 > **CRS Artificial Intelligence · Y2C1 Machine Learning and Deep Learning · Formative Assessment 2**
 > Developing an AI-Powered Elderly Fall Detection System — Building and Deploying the Model
 
-**Live app:** _(deployment in progress — link added on completion)_
+**Live app:** https://fallguard-ai-dhwanan.streamlit.app/
 **Source:** https://github.com/DHWANAN722/fallguard-ai
 
 ---

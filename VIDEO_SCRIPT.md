@@ -7,7 +7,7 @@ All eight are covered below, in order.
 
 **Before you record**
 
-- Open the deployed Streamlit URL (not localhost) so the live link is visible.
+- Open https://fallguard-ai-dhwanan.streamlit.app/ (the deployed app, not localhost) so the live link is visible in the address bar.
 - Have ready: one photo of a person standing, one of someone bending over, one
   of someone lying on the floor, and one short clip (10–20 s) of a fall.
 - Open `notebooks/FallGuard_Training.ipynb` in a second tab, already executed.

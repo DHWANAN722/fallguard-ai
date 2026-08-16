@@ -378,7 +378,10 @@ scripted video sequence (standing → walking → collapse) the engine escalates
 
 ## Step 7 — Deployment
 
-Deployed to Streamlit Community Cloud. Four surfaces:
+**Live application: https://fallguard-ai-dhwanan.streamlit.app/**
+**Source: https://github.com/DHWANAN722/fallguard-ai**
+
+Deployed to Streamlit Community Cloud (Python 3.11). Four surfaces:
 
 * **Image Analysis** — pose overlay, activity with confidence, class-probability
   bars, biomechanical evidence panel, alert banner, plus a view of the exact
