@@ -85,7 +85,7 @@ On Google Colab, run the install cell. Locally, `pip install -r requirements.txt
 # If you are running this from a clone of the project repository, the `src`
 # package is already importable. On a bare Colab runtime, clone it first:
 #
-# !git clone https://github.com/<your-username>/fallguard-ai.git
+# !git clone https://github.com/DHWANAN722/fallguard-ai.git
 # %cd fallguard-ai
 """),
 
