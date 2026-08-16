@@ -1,0 +1,11 @@
+                 precision    recall  f1-score   support
+
+  Fall Detected     1.0000    1.0000    1.0000       600
+        Walking     0.9593    0.9833    0.9712       600
+        Sitting     1.0000    1.0000    1.0000       600
+       Standing     0.9765    0.9700    0.9732       600
+Normal Activity     0.9983    0.9800    0.9891       600
+
+       accuracy                         0.9867      3000
+      macro avg     0.9868    0.9867    0.9867      3000
+   weighted avg     0.9868    0.9867    0.9867      3000

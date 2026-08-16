@@ -1,0 +1,29 @@
+{
+  "classes": [
+    "Fall Detected",
+    "Walking",
+    "Sitting",
+    "Standing",
+    "Normal Activity"
+  ],
+  "fall_index": 0,
+  "input_shape": [
+    64,
+    64,
+    3
+  ],
+  "n_parameters": 197925,
+  "epochs_run": 22,
+  "best_val_accuracy": 0.9890000224113464,
+  "numpy_keras_max_delta": 1.7285346984863281e-06,
+  "train_seconds": 218.2,
+  "dataset": {
+    "total": 20000,
+    "split": {
+      "train": 14000,
+      "val": 3000,
+      "test": 3000
+    },
+    "source": "synthetic"
+  }
+}

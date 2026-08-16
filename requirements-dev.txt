@@ -1,0 +1,12 @@
+# Training-only dependencies — NOT needed to run the dashboard.
+# Install on top of requirements.txt to retrain:
+#     pip install -r requirements.txt -r requirements-dev.txt
+#     python scripts/train.py
+
+-r requirements.txt
+
+tensorflow==2.19.1        # use tensorflow-cpu on x86_64 if you prefer
+scikit-learn==1.5.2
+matplotlib==3.9.2
+seaborn==0.13.2
+jupyter==1.1.1

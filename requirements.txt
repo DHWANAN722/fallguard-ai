@@ -1,0 +1,31 @@
+# FallGuard AI — Streamlit Cloud serving dependencies
+#
+# Every pin here is deliberate; the combination below is the one that actually
+# resolves. Read before changing anything:
+#
+#   mediapipe 0.10.18  — the 1.x line removed `mp.solutions.pose` in favour of
+#                        the Tasks API, which downloads its model bundle from
+#                        the network on first call. 0.10.x ships BlazePose
+#                        inside the wheel, so there is no cold-start download.
+#   protobuf 4.25.x    — required by mediapipe 0.10.x (<5). This is the pin
+#                        that forces the Streamlit ceiling below.
+#   streamlit 1.44.1   — the newest release still allowing protobuf<6.
+#                        Streamlit >=1.45 requires protobuf>=5.26 and will
+#                        break MediaPipe.
+#   numpy <2           — mediapipe 0.10.x is not built against the NumPy 2 ABI.
+#   opencv ...-headless — the non-headless build needs libGL, which is absent
+#                        from the Streamlit Cloud image.
+#
+# TensorFlow is deliberately ABSENT. The CNN is trained with Keras in the
+# notebook, then exported to plain NumPy weights (models/fallguard_cnn.npz) and
+# served by src/cnn_numpy.py. That keeps the container small and fast to start.
+# To retrain, install requirements-dev.txt as well.
+
+streamlit==1.44.1
+mediapipe==0.10.18
+protobuf==4.25.8
+numpy==1.26.4
+opencv-python-headless==4.10.0.84
+pillow==10.4.0
+pandas==2.2.3
+plotly==5.24.1
