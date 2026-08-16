@@ -98,7 +98,11 @@ class FallDetector:
         biomech_threshold: float = 0.42,
         persistence_frames: int = 4,
         impact_velocity: float = 0.55,
-        history: int = 240,
+        # Must be >= the maximum number of frames the caller will analyse.
+        # If the deque silently drops the oldest frames, the analytics
+        # under-report the total AND the dashboard's frame lookup goes out of
+        # step with this history, so it would annotate the wrong frame.
+        history: int = 1000,
     ):
         from .cnn_numpy import NumpyHybrid
 
@@ -210,7 +214,8 @@ class FallDetector:
         if not self.history:
             return {
                 "total": 0, "counts": {c: 0 for c in self.classes},
-                "fall_frames": 0, "normal_frames": 0, "mean_confidence": 0.0,
+                "fall_frames": 0, "normal_activity_frames": 0,
+                "non_fall_frames": 0, "mean_confidence": 0.0,
                 "peak_level": NORMAL, "alert_frames": 0,
             }
 
@@ -226,7 +231,13 @@ class FallDetector:
             "total": len(self.history),
             "counts": counts,
             "fall_frames": falls,
-            "normal_frames": len(self.history) - falls,
+            # Two genuinely different quantities that are easy to conflate:
+            # `normal_activity_frames` is the *class* (bending / reaching);
+            # `non_fall_frames` is everything that is not a fall. Reporting the
+            # latter under a "Normal activity" label would mean a clip of
+            # someone simply walking displays as 100% "Normal activity".
+            "normal_activity_frames": counts.get("Normal Activity", 0),
+            "non_fall_frames": len(self.history) - falls,
             "mean_confidence": float(np.mean([p.confidence for p in self.history])),
             "peak_level": peak,
             "alert_frames": sum(1 for p in self.history if p.level in (ALERT, EMERGENCY)),

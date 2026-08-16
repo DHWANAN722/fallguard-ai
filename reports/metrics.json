@@ -16,7 +16,7 @@
       "f1_macro": 0.9826778920676904,
       "fall_precision": 1.0,
       "fall_recall": 1.0,
-      "train_seconds": 6.1
+      "train_seconds": 5.4
     },
     "SVM (RBF)": {
       "accuracy": 0.9533333333333334,
@@ -25,8 +25,16 @@
       "f1_macro": 0.9535237805081236,
       "fall_precision": 1.0,
       "fall_recall": 1.0,
-      "train_seconds": 0.9
+      "train_seconds": 0.8
     }
+  },
+  "validation": {
+    "accuracy": 0.9873333333333333,
+    "precision_macro": 0.9873327453687372,
+    "recall_macro": 0.9873333333333333,
+    "f1_macro": 0.9873327696755345,
+    "fall_recall": 1.0,
+    "fall_precision": 1.0
   },
   "confusion_matrix": [
     [
@@ -63,6 +71,43 @@
       0,
       4,
       588
+    ]
+  ],
+  "confusion_matrix_validation": [
+    [
+      600,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      584,
+      0,
+      16,
+      0
+    ],
+    [
+      0,
+      0,
+      600,
+      0,
+      0
+    ],
+    [
+      0,
+      16,
+      0,
+      581,
+      3
+    ],
+    [
+      0,
+      1,
+      0,
+      2,
+      597
     ]
   ],
   "per_class": {

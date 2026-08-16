@@ -1,3 +1,5 @@
+TEST SPLIT
+==========
                  precision    recall  f1-score   support
 
   Fall Detected     1.0000    1.0000    1.0000       600
@@ -9,3 +11,18 @@ Normal Activity     0.9983    0.9800    0.9891       600
        accuracy                         0.9867      3000
       macro avg     0.9868    0.9867    0.9867      3000
    weighted avg     0.9868    0.9867    0.9867      3000
+
+
+VALIDATION SPLIT
+================
+                 precision    recall  f1-score   support
+
+  Fall Detected     1.0000    1.0000    1.0000       600
+        Walking     0.9717    0.9733    0.9725       600
+        Sitting     1.0000    1.0000    1.0000       600
+       Standing     0.9699    0.9683    0.9691       600
+Normal Activity     0.9950    0.9950    0.9950       600
+
+       accuracy                         0.9873      3000
+      macro avg     0.9873    0.9873    0.9873      3000
+   weighted avg     0.9873    0.9873    0.9873      3000

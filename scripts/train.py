@@ -183,6 +183,23 @@ def finalize(model, corpus, R, F, Y, state, args) -> None:
         print(f"{name:<16} acc {r['accuracy']:.4f}  F1 {r['f1_macro']:.4f}  "
               f"fall-recall {r['fall_recall']:.4f}", flush=True)
 
+    # Validation is scored into its own dict, NOT into `results`. `results`
+    # is the cross-model comparison table and every row in it must be on the
+    # same split, or the app's "which model is deployed" lookup silently
+    # selects the validation row and reports it as test accuracy.
+    val_pred = runtime.predict(as_float(R["val"]), F["val"]).argmax(1)
+    validation = {
+        "accuracy": float(accuracy_score(Y["val"], val_pred)),
+        "precision_macro": float(precision_score(Y["val"], val_pred, average="macro", zero_division=0)),
+        "recall_macro": float(recall_score(Y["val"], val_pred, average="macro", zero_division=0)),
+        "f1_macro": float(f1_score(Y["val"], val_pred, average="macro", zero_division=0)),
+        "fall_recall": float(recall_score(Y["val"], val_pred, labels=[FALL], average="micro", zero_division=0)),
+        "fall_precision": float(precision_score(Y["val"], val_pred, labels=[FALL], average="micro", zero_division=0)),
+    }
+    print(f"\n--- validation split ---\nHybrid CNN       acc {validation['accuracy']:.4f}"
+          f"  F1 {validation['f1_macro']:.4f}  "
+          f"fall-recall {validation['fall_recall']:.4f}", flush=True)
+
     print("\n--- test-set performance ---", flush=True)
     cnn_pred = runtime.predict(as_float(R["test"]), F["test"]).argmax(1)
     score("Hybrid CNN", Y["test"], cnn_pred, state["seconds"])
@@ -201,7 +218,12 @@ def finalize(model, corpus, R, F, Y, state, args) -> None:
     txt = classification_report(Y["test"], cnn_pred, target_names=CLASS_NAMES, digits=4)
     print("\n" + txt, flush=True)
     with open(os.path.join(REPORTS, "classification_report.txt"), "w") as fh:
-        fh.write(txt)
+        fh.write("TEST SPLIT\n==========\n" + txt)
+        fh.write("\n\nVALIDATION SPLIT\n================\n")
+        fh.write(classification_report(Y["val"], val_pred,
+                                       target_names=CLASS_NAMES, digits=4))
+
+    val_cm = confusion_matrix(Y["val"], val_pred)
 
     plt = _plt()
 
@@ -304,7 +326,9 @@ def finalize(model, corpus, R, F, Y, state, args) -> None:
     with open(os.path.join(REPORTS, "metrics.json"), "w") as fh:
         json.dump({
             "models": results,
+            "validation": validation,
             "confusion_matrix": cm.tolist(),
+            "confusion_matrix_validation": val_cm.tolist(),
             "per_class": {n: {"precision": float(p[i]), "recall": float(r[i]),
                               "f1": float(f[i])}
                           for i, n in enumerate(CLASS_NAMES)},
@@ -423,11 +447,14 @@ def main() -> None:
         if state["wait"] >= args.patience:
             print(f"\nearly stopping — no improvement for {args.patience} epochs",
                   flush=True)
-            state["epoch"] = args.epochs
+            # record the real epoch count, and stop via an explicit flag —
+            # overwriting state["epoch"] with args.epochs would misreport
+            # `epochs_run` in labels.json whenever early stopping fires
+            state["stopped_early"] = True
             break
 
     model.save(CKPT)
-    finished = state["epoch"] >= args.epochs
+    finished = state["epoch"] >= args.epochs or state.get("stopped_early", False)
     state["done"] = finished
     with open(STATE, "w") as fh:
         json.dump(state, fh)

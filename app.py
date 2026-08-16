@@ -260,11 +260,12 @@ def analytics_block(detector: FallDetector, key: str) -> None:
         return
 
     st.markdown("### Monitoring analytics")
-    cols = st.columns(5)
+    cols = st.columns(6)
     tiles = [
         ("Total detections", f"{s['total']}", theme.CYAN),
         ("Falls detected", f"{s['fall_frames']}", theme.RED),
-        ("Normal activity", f"{s['normal_frames']}", theme.LIME),
+        ("Normal activity", f"{s['normal_activity_frames']}", theme.VIOLET),
+        ("Non-fall frames", f"{s['non_fall_frames']}", theme.LIME),
         ("Mean confidence", f"{s['mean_confidence']:.0%}", theme.AMBER),
         ("Alert frames", f"{s['alert_frames']}", theme.MAGENTA),
     ]
@@ -360,6 +361,23 @@ with tab_img:
                 detector.reset()
                 pred = detector.predict(P, V, timestamp=0.0, temporal=False)
                 render_result(frame, pred, f"{up.name} · pose landmarks overlaid")
+
+                # The brief requires the monitoring counters to be visible on
+                # the dashboard; a user who only ever uploads a still should
+                # still see them, so they are surfaced here too (n = 1).
+                st.markdown('<hr class="fg-rule">', unsafe_allow_html=True)
+                st.markdown("### Monitoring analytics")
+                s = detector.summary()
+                cols = st.columns(5)
+                for c, (lab, val, col) in zip(cols, [
+                    ("Total detections", f"{s['total']}", theme.CYAN),
+                    ("Falls detected", f"{s['fall_frames']}", theme.RED),
+                    ("Normal activity", f"{s['normal_activity_frames']}", theme.VIOLET),
+                    ("Confidence", f"{pred.confidence:.0%}", theme.AMBER),
+                    ("Alert level", LEVEL_STYLE[pred.level][0].split("—")[0].strip(),
+                     LEVEL_STYLE[pred.level][1]),
+                ]):
+                    c.markdown(metric_tile(lab, val, col), unsafe_allow_html=True)
 
                 with st.expander("What the CNN actually sees"):
                     a, b = st.columns([1, 2])
@@ -602,7 +620,25 @@ with tab_model:
     st.markdown('<hr class="fg-rule">', unsafe_allow_html=True)
 
     if m:
+        if m.get("validation"):
+            v = m["validation"]
+            t = m["models"][deployed]
+            st.markdown("### Validation vs test")
+            st.caption("Close agreement between the two held-out splits is the "
+                       "evidence that the test score is not itself overfitted.")
+            st.dataframe(pd.DataFrame([
+                {"split": "validation", "accuracy": f"{v['accuracy']:.4f}",
+                 "F1 (macro)": f"{v['f1_macro']:.4f}",
+                 "fall recall": f"{v['fall_recall']:.4f}",
+                 "fall precision": f"{v['fall_precision']:.4f}"},
+                {"split": "test", "accuracy": f"{t['accuracy']:.4f}",
+                 "F1 (macro)": f"{t['f1_macro']:.4f}",
+                 "fall recall": f"{t['fall_recall']:.4f}",
+                 "fall precision": f"{t['fall_precision']:.4f}"},
+            ]), use_container_width=True, hide_index=True)
+
         st.markdown("### Model comparison")
+        st.caption("All rows scored on the same held-out test split.")
         rows = []
         for name, r in m["models"].items():
             rows.append({
@@ -633,6 +669,23 @@ with tab_model:
         cols = st.columns(2)
         for col, (f, cap) in zip(cols, shown[i:i + 2]):
             col.image(os.path.join(REPORTS, f), caption=cap, use_container_width=True)
+
+    pred_dir = os.path.join(REPORTS, "predictions")
+    if os.path.isdir(pred_dir):
+        st.markdown("### Prediction gallery")
+        grid = os.path.join(pred_dir, "07_grid_all_classes.png")
+        if os.path.exists(grid):
+            st.image(grid, caption="Predictions across all five activity classes",
+                     use_container_width=True)
+        combo = os.path.join(pred_dir, "06_false_alarm_test.png")
+        if os.path.exists(combo):
+            with st.expander("False-alarm test — a real fall beside a deep bend"):
+                st.image(combo, use_container_width=True)
+        with st.expander("Per-class prediction panels"):
+            for f in sorted(os.listdir(pred_dir)):
+                if f.startswith(("06", "07")) or not f.endswith(".png"):
+                    continue
+                st.image(os.path.join(pred_dir, f), use_container_width=True)
 
     st.markdown('<hr class="fg-rule">', unsafe_allow_html=True)
     st.markdown("### How a decision is made")

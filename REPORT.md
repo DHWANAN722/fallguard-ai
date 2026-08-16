@@ -225,14 +225,23 @@ self-consistent before blaming the model.
 
 ## Step 6 — Model Evaluation and Testing
 
-### 6.1 Overall metrics (held-out test split, n = 3 000)
+### 6.1 Overall metrics — validation and test
 
-| Metric | Value |
-|---|---|
-| Accuracy | 0.9867 |
-| Precision (macro) | 0.9868 |
-| Recall (macro) | 0.9867 |
-| F1 (macro) | 0.9867 |
+Both held-out splits are reported. Their close agreement is the evidence that
+the test score is not itself the product of repeated model selection.
+
+| Metric | Validation (n = 3 000) | Test (n = 3 000) |
+|---|---|---|
+| Accuracy | 0.9873 | 0.9867 |
+| Precision (macro) | 0.9874 | 0.9868 |
+| Recall (macro) | 0.9873 | 0.9867 |
+| F1 (macro) | 0.9873 | 0.9867 |
+| Fall precision | 1.0000 | 1.0000 |
+| Fall recall | 1.0000 | 1.0000 |
+
+Full per-class reports for **both** splits are in
+`reports/classification_report.txt`; both confusion matrices are in
+`reports/metrics.json`.
 
 ### 6.2 Per-class performance
 
@@ -267,7 +276,24 @@ Reading it:
   irreducibly ambiguous from a single frame and is resolved temporally in the
   video path.
 
-### 6.4 Robustness under real-world conditions
+### 6.4 Prediction outputs
+
+Annotated prediction panels for every class are committed under
+`reports/predictions/`, each showing the pose overlay, the predicted class and
+confidence, the full probability distribution, the biomechanical evidence and
+the resulting alert level:
+
+| File | Contents |
+|---|---|
+| `01_fall_detected.png` … `05_normal_activity.png` | one panel per activity class |
+| `06_false_alarm_test.png` | a real fall beside a deep bend — the decisive comparison |
+| `07_grid_all_classes.png` | contact sheet across all five classes |
+
+These are rendered by `scripts/make_predictions.py` rather than screen-captured,
+so re-running it after any retraining regenerates them against the current
+model instead of leaving stale screenshots in the repository.
+
+### 6.5 Robustness under real-world conditions
 
 Rather than assert robustness, it was measured by re-generating the test set at
 progressively harsher landmark-noise levels. Note that *lighting* is not
@@ -292,7 +318,7 @@ system loses the ability to distinguish walking from standing — which nobody i
 paged about — long before it loses the ability to detect that someone is on the
 floor.
 
-### 6.5 Threshold calibration
+### 6.6 Threshold calibration
 
 The corroboration threshold was measured, not guessed:
 
@@ -316,7 +342,7 @@ zero. Raising the threshold to 0.50 would silently demote ~6 % of real falls to
 a non-paging state for no practical gain in specificity — the wrong trade in a
 safety system.
 
-### 6.6 End-to-end alert behaviour
+### 6.7 End-to-end alert behaviour
 
 Single-frame alert levels, 300 samples per class:
 
@@ -332,7 +358,7 @@ Single-frame alert levels, 300 samples per class:
 scripted video sequence (standing → walking → collapse) the engine escalates
 `NORMAL` → `ALERT` → `EMERGENCY` once persistence is satisfied.
 
-### 6.7 Deployment challenges considered
+### 6.8 Deployment challenges considered
 
 | Challenge | Mitigation |
 |---|---|

@@ -13,6 +13,7 @@ Streamlit dashboard.
 
 | Metric | Value |
 |---|---|
+| Validation accuracy | **98.73 %** |
 | Test accuracy | **98.67 %** |
 | Macro F1 | **0.9867** |
 | **Fall recall** | **1.000** — no fall missed |
@@ -154,12 +155,15 @@ fallguard-ai/
 │   └── theme.py                 cyberpunk visual system
 ├── scripts/
 │   ├── train.py                 train, evaluate, compare, export
+│   ├── selftest.py              40+ end-to-end checks; gates a commit
+│   ├── make_predictions.py      renders the prediction panels
 │   ├── ingest_kaggle.py         convert a real image dataset into the corpus format
 │   └── make_notebook.py         generates the training notebook
 ├── notebooks/
 │   └── FallGuard_Training.ipynb Steps 4–6, Colab-ready
 ├── models/                      trained weights + serving metadata
 └── reports/                     confusion matrix, curves, metrics.json
+    └── predictions/             annotated prediction panels, one per class
 ```
 
 ---

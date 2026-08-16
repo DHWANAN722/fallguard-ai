@@ -47,7 +47,10 @@ def main() -> None:
                 "reports/per_class_metrics.png",
                 "reports/classification_report.txt",
                 "app.py", "requirements.txt", "README.md", "REPORT.md",
-                "VIDEO_SCRIPT.md", "notebooks/FallGuard_Training.ipynb"):
+                "VIDEO_SCRIPT.md", "notebooks/FallGuard_Training.ipynb",
+                "reports/predictions/01_fall_detected.png",
+                "reports/predictions/06_false_alarm_test.png",
+                "reports/predictions/07_grid_all_classes.png"):
         check(rel, os.path.exists(os.path.join(ROOT, rel)))
 
     # ------------------------------------------------------------- geometry
@@ -126,8 +129,23 @@ def main() -> None:
     check("escalates to EMERGENCY after the fall", EMERGENCY in levels[9:])
     s = det.summary()
     check("summary counts are consistent",
-          s["total"] == len(seq) and s["fall_frames"] + s["normal_frames"] == s["total"],
-          str({k: s[k] for k in ("total", "fall_frames", "normal_frames")}))
+          s["total"] == len(seq) and s["fall_frames"] + s["non_fall_frames"] == s["total"],
+          str({k: s[k] for k in ("total", "fall_frames", "non_fall_frames")}))
+    # regression guard: `normal_activity_frames` must be the CLASS count, not
+    # "everything that is not a fall" — the prefix here is Standing/Walking
+    check("'Normal activity' counts the class, not all non-falls",
+          s["normal_activity_frames"] == s["counts"]["Normal Activity"]
+          and s["normal_activity_frames"] < s["non_fall_frames"],
+          f"normal_activity={s['normal_activity_frames']} "
+          f"non_fall={s['non_fall_frames']}")
+
+    # regression guard: history must not silently truncate a long clip
+    det.reset()
+    for i in range(600):
+        det.predict(*generate_sample(3, rng), timestamp=i / 6.0, frame_index=i,
+                    temporal=True)
+    check("history holds a long clip without truncating",
+          det.summary()["total"] == 600, str(det.summary()["total"]))
 
     # ----------------------------------------------------- reported metrics
     print("\n[6] reported metrics match the model on disk")
@@ -135,6 +153,15 @@ def main() -> None:
         m = json.load(fh)
     deployed = next(k for k in m["models"] if "CNN" in k)
     reported = m["models"][deployed]["accuracy"]
+    check("comparison table is single-split (no validation row leaked in)",
+          not any("valid" in k.lower() for k in m["models"]),
+          ", ".join(m["models"]))
+    check("validation metrics reported separately", "validation" in m,
+          f"val acc {m['validation']['accuracy']:.4f}" if "validation" in m else "missing")
+    if "validation" in m:
+        check("validation and test agree within 2 points",
+              abs(m["validation"]["accuracy"] - reported) < 0.02,
+              f"val {m['validation']['accuracy']:.4f} vs test {reported:.4f}")
 
     data = os.path.join(ROOT, "data", "fallguard_dataset.npz")
     if os.path.exists(data):
