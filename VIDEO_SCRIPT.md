@@ -1,7 +1,13 @@
 # Screen-recording script — FallGuard AI
 
-**Target: 8–10 minutes.** Everything in **bold** is spoken aloud.
+**Target: 9–10 minutes.** Everything in **bold** is spoken aloud.
 Everything in `[SCREEN: ...]` is what you do with the mouse at that moment.
+
+The script is about 1,330 spoken words. Read at a normal pace it runs roughly
+9 minutes, plus a minute or so of silence while the app processes — so it lands
+comfortably in range. If you want it shorter, the two paragraphs marked
+*(optional)* in Scene 6 can be dropped without losing anything the brief asks
+for.
 
 The brief requires eight things, and all eight are covered in order:
 project overview · dataset explanation · pose estimation outputs · model
@@ -36,106 +42,88 @@ is not.
 
 ---
 
-# SCENE 1 · Overview — 0:00 to 1:20
+# SCENE 1 · Overview — 0:00 to 1:00
 
 `[SCREEN: Tab 1, the live app, scrolled to the very top. The URL bar is visible.]`
 
 > **Hi, I'm Dhwanan Bhatt, and this is FallGuard AI — an elderly fall detection
-> and healthcare monitoring system, built for Formative Assessment 2 of the
-> Machine Learning and Deep Learning module.**
-
-> **This is the live application, deployed on Streamlit Cloud — you can see the
-> URL at the top of the screen.**
+> and healthcare monitoring system, built for Formative Assessment 2. This is the
+> live app, deployed on Streamlit Cloud — the URL is at the top of the screen.**
 
 `[SCREEN: Move the mouse up and circle the address bar slowly once.]`
 
 > **Falls are the leading cause of injury-related death in adults over 65. But
-> when I started building this, I realised the hard problem isn't detecting a
-> fall. It's detecting a fall without crying wolf.**
+> the hard problem isn't detecting a fall — it's detecting one without crying
+> wolf.**
 
-> **A monitor that alerts every time a resident bends down to pick something up
-> gets muted within a week. And a muted monitor detects nothing at all. So the
-> question I designed around wasn't "can I detect falls" — it was "can I detect
-> falls without false alarms". That single decision shapes everything you're
-> about to see.**
+> **A monitor that alerts every time a resident bends down gets muted within a
+> week — and a muted monitor detects nothing at all. So the question I designed
+> around wasn't "can I detect falls", it was "can I detect falls without false
+> alarms". That shapes everything you're about to see.**
 
 `[SCREEN: Slowly scroll down a little so all four tabs are clearly visible, then
 scroll back up. Hover over each tab name in turn as you say the next lines.]`
 
-> **The dashboard has four sections. Image Analysis runs a single photograph.
-> Video Monitoring runs a clip frame by frame. Live Simulation demonstrates the
-> alert logic without any footage. And Model and Metrics shows the training
+> **The dashboard has four sections: Image Analysis for a single photo, Video
+> Monitoring for a clip, Live Simulation, and Model and Metrics for the training
 > evidence.**
-
-`[SCREEN: Point at the sidebar on the left.]`
-
-> **And on the left are the live detection thresholds and the video sampling
-> controls, so everything I'm about to describe can be adjusted and tested.**
 
 ---
 
-# SCENE 2 · Dataset — 1:20 to 3:00
+# SCENE 2 · Dataset — 1:00 to 2:30
 
 `[SCREEN: Switch to Tab 2 — the notebook on GitHub. Scroll to section 2,
 "Step 5a — The dataset".]`
 
 > **First, the data — and I want to be completely upfront about this.**
 
-> **Kaggle was not reachable from the environment I built this in. So rather
-> than fake it, the training corpus is procedurally generated: a two-dimensional
-> forward-kinematic model of the human body, driven by joint-angle distributions
-> taken from the gait and fall-biomechanics literature.**
+> **Kaggle wasn't reachable from the environment I built this in. So rather
+> than fake it, the training corpus is procedurally generated — a
+> forward-kinematic model of the human body driven by joint-angle distributions
+> from the gait and fall-biomechanics literature.**
 
-> **What makes that defensible is that my classifier never sees pixels. It sees
-> normalised landmark geometry — which is exactly what MediaPipe produces from a
-> real photograph. So the gap between synthetic and real is far narrower than it
-> would be for an image-based model. And I ship a script, ingest underscore
-> kaggle dot py, that converts any real labelled dataset into the identical
-> format, so the whole pipeline retrains unchanged.**
+> **What makes that defensible is that my classifier never sees pixels — it sees
+> normalised landmark geometry, exactly what MediaPipe produces from a real
+> photograph. And I ship a script that converts any real dataset into the same
+> format, so the pipeline retrains unchanged.**
 
 `[SCREEN: Scroll down to the 5×6 grid of coloured skeletons.]`
 
 > **Here are samples from the corpus. Every one is degraded the way real
-> deployments degrade: camera roll, camera yaw and foreshortening, landmark
-> jitter, and occlusion.**
-
-`[SCREEN: Point at any skeleton in the grid that is missing its legs.]`
-
-> **You can see occlusion here — the legs are missing, because in a real room
-> furniture would be in the way.**
+> deployments degrade: camera roll, yaw and foreshortening, landmark jitter, and
+> occlusion — you can see skeletons here missing their legs, because in a real
+> room furniture would be in the way.**
 
 `[SCREEN: Move the mouse to the first row, then down to the fifth row.]`
 
-> **Now, these two rows are the entire design of this project. Row one is
-> "Fall Detected". Row five is "Normal Activity" — and I defined Normal Activity
-> very specifically as bending and reaching.**
+> **These two rows are the entire design of this project. Row one is "Fall
+> Detected". Row five is "Normal Activity", which I defined specifically as
+> bending and reaching.**
 
-> **Look at them. Both have a near-horizontal trunk. The difference is where the
-> pelvis is, and what the legs are doing. Bending over is the posture that
-> breaks naive fall detectors, so instead of ignoring it, I made it a
-> first-class category that the model is forced to learn against.**
+> **Both have a near-horizontal trunk. The difference is where the pelvis is and
+> what the legs are doing. Bending is the posture that breaks naive fall
+> detectors, so instead of ignoring it I made it a category the model is forced
+> to learn against.**
 
 `[SCREEN: Scroll to the split table showing train / val / test counts.]`
 
-> **Twenty thousand samples in total, split seventy, fifteen, fifteen — and the
-> split is stratified within each class, so validation and test stay perfectly
-> balanced at six hundred samples per class.**
+> **Twenty thousand samples, split seventy, fifteen, fifteen — stratified
+> within each class, so validation and test stay perfectly balanced.**
 
 ---
 
-# SCENE 3 · Pose estimation output — 3:00 to 4:10
+# SCENE 3 · Pose estimation output — 2:30 to 3:40
 
 `[SCREEN: Switch back to Tab 1. You should be on the Image Analysis tab.
 Click the "Standing" button.]`
 
-> **Now let's run a real photograph through it. I've bundled three of my own
-> photos into the app, so anyone opening this link can try it in one click.**
+> **Let's run a real photograph through it. I've bundled three of my own photos
+> in, so anyone opening this link can try it in one click.**
 
 `[SCREEN: Wait for the result to appear. Do not talk over the loading spinner.]`
 
 > **That's me standing. MediaPipe BlazePose has localised thirty-three body
-> landmarks, and you can see the skeleton drawn on top of the actual
-> photograph. Cyan is the torso, magenta is the arms, green is the legs.**
+> landmarks — cyan is the torso, magenta the arms, green the legs.**
 
 `[SCREEN: Point at the "Predicted activity" card on the right.]`
 
@@ -144,17 +132,14 @@ Click the "Standing" button.]`
 
 `[SCREEN: Scroll down and click to expand "What the CNN actually sees".]`
 
-> **And this is the part I think is most important. This little image is the
-> actual input to the neural network — a sixty-four by sixty-four, three-channel
-> tensor, with the bones split by body part.**
-
-> **The photograph goes no further than the pose estimator. That's a privacy
-> property built into the architecture: in a real care home, no identifiable
-> image of a resident ever reaches the model, and none would need to be stored.**
+> **This is the actual input to the network — a sixty-four by sixty-four
+> three-channel tensor, bones split by body part. The photograph goes no further
+> than the pose estimator. That's a privacy property built into the
+> architecture: no identifiable image of a resident ever reaches the model.**
 
 ---
 
-# SCENE 4 · The false-alarm test — 4:10 to 5:40
+# SCENE 4 · The false-alarm test — 3:40 to 5:20
 
 **This is the most important 90 seconds of the video. Do not rush it.**
 
@@ -164,26 +149,25 @@ Click the "Standing" button.]`
 
 `[SCREEN: Wait for the orange FALL ALERT banner. Pause a beat.]`
 
-> **Fall Detected, ninety-six point six percent, and the banner has gone to FALL
-> ALERT. But look at the panel on the right — this is what makes the system
-> trustworthy rather than just accurate.**
+> **Fall Detected, ninety-six percent, and the banner has gone to FALL ALERT.
+> But look at the panel on the right — this is what makes it trustworthy rather
+> than just accurate.**
 
 `[SCREEN: Scroll so the "Biomechanical evidence" panel is visible. Move the
 mouse slowly down the four rows as you name them.]`
 
-> **Trunk inclination, eighty-nine degrees — almost horizontal. Bounding-box
-> aspect ratio, zero point six seven — wider than it is tall. Pelvis height in
-> frame. And leg verticality, zero point zero four — the legs are nowhere near
-> underneath the body.**
+> **Trunk inclination, eighty-nine degrees — almost horizontal. Aspect ratio
+> zero point six seven, wider than it is tall. And leg verticality zero point
+> zero four — the legs are nowhere near underneath the body.**
 
-> **These are quantities a clinician can actually reason about. The system isn't
-> just saying "fall" — it's showing its working.**
+> **These are quantities a clinician can reason about — it's showing its
+> working.**
 
 `[SCREEN: Point at the "Biomechanical score" row at the bottom of the panel.]`
 
-> **And this bottom number, the biomechanical score, is one hundred percent. It
-> is computed by a completely separate geometric rule that does not use the
-> neural network at all. Both of them have to agree before any alert is raised.**
+> **And this bottom number, the biomechanical score, is a hundred percent — from
+> a separate geometric rule that doesn't use the neural network at all. Both have
+> to agree before any alert is raised.**
 
 `[SCREEN: Scroll up and click the "Bending over" button.]`
 
@@ -197,79 +181,64 @@ a couple of seconds before speaking.]`
 
 `[SCREEN: Point at the trunk inclination row.]`
 
-> **And look at the trunk angle — eighty degrees. That is nearly as horizontal
-> as the fall I just showed you. A detector that thresholds on trunk angle alone
-> fires here, every single time.**
+> **Look at the trunk angle — eighty degrees. Nearly as horizontal as the fall I
+> just showed you. A detector thresholding on trunk angle fires here every time.**
 
 `[SCREEN: Point at the pelvis height and leg verticality rows.]`
 
-> **But the pelvis is still at standing height, and leg verticality is zero
-> point nine six — the legs are still directly underneath the body. So the
-> biomechanical rule refuses to corroborate, the score stays at twenty percent,
-> and no alarm is raised.**
-
-> **That one case is the difference between a system people keep switched on,
-> and one they mute in the first week.**
+> **But the pelvis is still at standing height and leg verticality is zero point
+> nine six — the legs are still under the body. So the rule refuses to
+> corroborate and no alarm is raised. That one case is the difference between a
+> system people keep switched on and one they mute in the first week.**
 
 ---
 
-# SCENE 5 · Video monitoring and the alert system — 5:40 to 7:20
+# SCENE 5 · Video monitoring and the alert system — 5:20 to 7:00
 
 `[SCREEN: Click the "VIDEO MONITORING" tab, then click the "Fall clip" button.]`
 
-> **Single frames only get you so far, though. A fall is an event, not a frame.
-> So here's a real clip of me walking and then falling.**
+> **Single frames only get you so far. A fall is an event, not a frame. Here's a
+> real clip of me walking, then falling.**
 
 `[SCREEN: Wait through the progress bar. Stay quiet while it processes — it
 takes a few seconds.]`
 
-> **The system sampled the clip at six frames per second and ran pose estimation
-> and classification on every sampled frame.**
-
-`[SCREEN: Point at the annotated feed, which is looping on its own.]`
-
-> **This is the annotated monitoring feed, playing on a loop. You can watch the
-> skeleton track me through the movement, and the label change as the
-> classification changes.**
+> **It sampled at six frames per second and ran pose estimation on every frame.
+> This is the annotated feed, looping — you can watch the skeleton track me and
+> the label change as the classification changes.**
 
 `[SCREEN: Point at the small warning line under the alert banner that reads
 "...sampled frames contained no detectable person and were skipped".]`
 
-> **And notice this line. Several frames were skipped. During the fastest part
-> of the fall there's motion blur, and the pose estimator's confidence collapses
-> — so the system rejects those frames instead of guessing. I added that
-> deliberately, because a fall alert built on unreliable landmarks is worse than
-> no alert at all.**
+> **And notice this line — several frames were skipped. During the fastest part
+> of the fall there's motion blur, the pose estimator's confidence collapses, and
+> the system rejects those frames instead of guessing. An alert built on
+> unreliable landmarks is worse than no alert.**
 
 `[SCREEN: Scroll down to the "Fall evidence over time" line chart.]`
 
-> **This timeline shows both detectors over time. The solid red line is the
-> neural network's fall probability. The dotted blue line is the independent
-> biomechanical score. You can see the red line jump to one hundred percent at
-> the moment of impact.**
+> **This timeline shows both detectors over time — red is the network's fall
+> probability, dotted blue is the independent biomechanical score. Red jumps to
+> a hundred percent at the moment of impact.**
 
 `[SCREEN: Scroll up briefly to the alert banner, then back down to the event log
 table.]`
 
-> **The clip reaches FALL ALERT. And here's the escalation logic: one
-> corroborated frame is an ALERT. It only becomes a full EMERGENCY if the state
-> persists across four consecutive frames, or if it coincides with a rapid
-> pelvis-descent signature — an impact.**
-
-> **That's the difference between someone falling, and someone who was already
-> sitting on the floor.**
+> **The clip reaches FALL ALERT. One corroborated frame is an ALERT; it only
+> becomes an EMERGENCY if that persists across four frames, or coincides with a
+> rapid pelvis-descent impact. That's the difference between someone falling and
+> someone already sitting on the floor.**
 
 `[SCREEN: Scroll to the six metric tiles, then to the activity distribution
 chart, then to the event log and the CSV download button.]`
 
-> **And these are the monitoring metrics a caregiver would actually see. Total
-> detections, falls detected, normal activity, mean confidence, alert frames.
-> The activity distribution chart. And a full emergency event log with
-> timestamps, which downloads as a CSV for the incident record.**
+> **And these are the metrics a caregiver would see — total detections, falls
+> detected, mean confidence, the activity distribution, and a full event log that
+> downloads as a CSV for the incident record.**
 
 ---
 
-# SCENE 6 · Evaluation metrics and confusion matrix — 7:20 to 9:00
+# SCENE 6 · Evaluation metrics and confusion matrix — 7:00 to 8:40
 
 `[SCREEN: Click the "MODEL & METRICS" tab.]`
 
@@ -279,38 +248,32 @@ chart, then to the event log and the CSV download button.]`
 `[SCREEN: Point at the four metric tiles across the top.]`
 
 > **A hundred and ninety-seven thousand parameters, fourteen thousand training
-> samples, ninety-eight point four percent test accuracy, and a hundred percent
-> fall recall.**
+> samples, ninety-eight point four percent accuracy, and a hundred percent fall
+> recall.**
 
 `[SCREEN: Point at the "Validation vs test" table.]`
 
-> **I'm showing validation and test side by side deliberately. Ninety-eight
-> point nine on validation, ninety-eight point four on test. They agree closely,
-> which is the evidence that the test score isn't itself overfitted — I selected
-> the weights on validation and scored the test split once, at the end.**
+> **I show validation and test side by side deliberately. They agree closely,
+> which is the evidence the test score isn't itself overfitted — I selected
+> weights on validation and scored test once, at the end.**
 
 `[SCREEN: Scroll to the "Model comparison" table.]`
 
+*(optional — cut this and the next paragraph if you need to save 45 seconds)*
+
 > **The brief recommended a CNN, but I didn't want to just assert that, so I
-> trained three models on identical splits. My hybrid CNN at ninety-eight point
-> four, a Random Forest at ninety-eight point three, and an SVM at ninety-five
-> point three.**
+> trained three models on identical splits — my hybrid CNN, a Random Forest, and
+> an SVM.**
 
-> **And there's a real story here. My first version was a pure CNN — it scored
-> ninety-one percent, and almost every error was confusing walking with
-> standing. Meanwhile the Random Forest, which receives the distance between the
-> ankles as an explicit number, beat it.**
-
-> **The CNN wasn't short of capacity. It was short of precision in one specific
-> measurement — at sixty-four by sixty-four, the gap between the ankles is only
-> a few pixels. So instead of choosing between them, I fused both: a
-> convolutional branch for overall posture shape, and a dense branch for the
-> exact geometry. The hybrid beats both of its parents.**
+> **My first version was a pure CNN. It scored ninety-one percent, and almost
+> every error confused walking with standing — while the Random Forest, which
+> gets the ankle separation as an explicit number, beat it. So I fused both: a
+> convolutional branch for posture shape, a dense branch for exact geometry. The
+> hybrid beats both parents.**
 
 `[SCREEN: Scroll down to the confusion matrix image.]`
 
-> **This is the confusion matrix on the test split, and I want to draw attention
-> to one thing specifically.**
+> **This is the confusion matrix on the test split.**
 
 `[SCREEN: Move the mouse along the top row of the matrix, then down the first
 column.]`
@@ -319,53 +282,37 @@ column.]`
 > hundred detected — nothing missed. And nothing else was ever mistaken for a
 > fall.**
 
-> **In a safety system those two numbers matter far more than overall accuracy,
-> because the costs are wildly asymmetric. A missed fall can be fatal. A false
-> alarm destroys the trust that keeps the system switched on.**
+> **In a safety system those matter far more than overall accuracy, because the
+> costs are asymmetric — a missed fall can be fatal, a false alarm destroys the
+> trust that keeps the system on. The remaining errors are walking versus
+> standing, genuinely ambiguous from one still frame.**
 
-> **The remaining errors are walking versus standing, which is genuinely
-> ambiguous from a single still frame — and which the video path resolves
-> temporally.**
+`[SCREEN: Scroll to the training curves, then to the "Prediction gallery".]`
 
-`[SCREEN: Scroll to the training curves image.]`
-
-> **Training converged at epoch twenty-two, with validation accuracy just under
-> ninety-nine percent.**
-
-`[SCREEN: Scroll further to the "Prediction gallery" contact sheet.]`
-
-> **And this is the prediction gallery — the model's output across all five
-> activity classes.**
+> **Training converged at epoch twenty-two at just under ninety-nine percent
+> validation accuracy. And this is the prediction gallery — output across all
+> five activity classes.**
 
 ---
 
-# SCENE 7 · Deployment, limitations, close — 9:00 to 10:00
+# SCENE 7 · Deployment, limitations, close — 8:40 to 9:40
 
 `[SCREEN: Scroll up so the URL bar is visible again.]`
 
-> **To summarise. The whole system is deployed and live at this URL, and the
-> source is on GitHub with the training notebook, the written report, and a
-> fifty-check test suite.**
+> **To summarise: the system is live at this URL, with the source, notebook and
+> written report on GitHub.**
 
-> **Ninety-eight point four percent test accuracy. Perfect precision and perfect
-> recall on the fall class. Zero false alarms on bending. And about one point
-> three milliseconds per frame.**
+> **Ninety-eight point four percent test accuracy, perfect precision and recall
+> on the fall class, zero false alarms on bending, and about one and a half
+> milliseconds per frame.**
 
-> **One deployment decision worth mentioning: the dashboard doesn't run
-> TensorFlow at all. TensorFlow is a six-hundred-megabyte dependency that
-> doesn't reliably fit alongside MediaPipe in a free container. So I train with
-> Keras, then export the weights to plain NumPy and run inference in about
-> ninety lines. And the export is verified — the training script rejects it if
-> the NumPy runtime disagrees with Keras by more than one part in ten thousand.**
+> **The honest limitations: it tracks one person at a time, it can't resolve a
+> fall directly toward the camera without depth, and it should be retrained on
+> real footage before clinical use. The retraining loop is in my report.**
 
-> **Finally, the honest limitations. It tracks one person at a time. It can't
-> resolve a fall directly toward the camera without depth information. And it
-> should be retrained on real annotated footage before any clinical use — the
-> retraining loop and the roadmap for that are both in my report.**
-
-> **But the number I'd actually defend is the false-alarm rate. Because that's
-> the one that decides whether a system like this is still switched on six
-> months after it's installed.**
+> **But the number I'd actually defend is the false-alarm rate — because that's
+> what decides whether a system like this is still switched on six months after
+> it's installed.**
 
 > **Thank you for watching.**
 
