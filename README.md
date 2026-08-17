@@ -98,7 +98,7 @@ python scripts/train.py --epochs 60
 |---|---|
 | **Image Analysis** | Upload a photo → neon pose overlay, predicted activity with confidence, class-probability bars, biomechanical evidence panel, alert banner. Includes a panel showing the exact 64×64×3 tensor the CNN receives. |
 | **Video Monitoring** | Upload a clip → per-frame analysis, annotated feed, fall-evidence timeline, activity distribution, emergency event log, downloadable incident CSV. |
-| **Real-Time Monitoring** | Opens the device camera and runs the full pipeline on the captured frame — pose overlay, class, confidence, biomechanical evidence, alert level. The frame is reduced to 33 landmarks in memory and never stored. |
+| **Real-Time Monitoring** | Opens the device camera and classifies **every frame as it arrives** — live skeleton overlay, class, confidence, biomechanical evidence and escalating alert level, at video framerate. Both the pose estimator and the network run inside the browser, so no video is uploaded or stored. |
 | **Live Simulation** | Five scripted scenarios — including a *bending-over false-alarm test* — for demonstrating the alert logic without footage. |
 | **Model & Metrics** | Model comparison, per-class metrics, confusion matrix, training curves, and a plain-English explanation of how a decision is made. |
 
@@ -260,13 +260,47 @@ per epoch, so the moving statistics used at inference stay dominated by their
 priors. `momentum=0.9` fixed it outright. A train/validation gap that appears in
 the first few epochs and is that extreme is a bug, not overfitting.
 
-**Why the camera tab captures rather than streams.** Continuous server-side
-video needs WebRTC, which needs Streamlit ≥1.45, which needs protobuf ≥5 —
-and MediaPipe 0.10 needs protobuf 4. Adding `streamlit-webrtc` upgrades numpy,
-protobuf and Streamlit together and breaks pose estimation outright (verified,
-not assumed). So the camera tab runs the real model over a dependency stack
-that actually resolves. In production this loop belongs on the camera or an
-edge device anyway; at ~1.5 ms per frame the classifier is not the bottleneck.
+**How the camera tab runs in real time.** Streamlit executes Python on a
+server, so classifying frames in Python means uploading every one and waiting —
+a request/response cycle, not a video feed. The usual escape is WebRTC, but
+that needs Streamlit ≥1.45, which needs protobuf ≥5, and MediaPipe 0.10 needs
+protobuf 4; adding `streamlit-webrtc` upgrades numpy, protobuf and Streamlit
+together and breaks pose estimation outright (verified, not assumed).
+
+So the model was moved to where the frames already are.
+`scripts/export_web_model.py` folds every BatchNorm into the convolution before
+it and packs the weights into 384 KB of float16; `assets/live_monitor.js`
+re-implements the inference runtime, all 126 feature descriptors and the
+biomechanical rule in JavaScript; MediaPipe's WebAssembly build supplies the
+same BlazePose landmarks. Inference costs ~9 ms/frame, and no video ever leaves
+the machine — a better privacy property than uploading it would have been, and
+the architecture a real deployment would use anyway.
+
+**Verifying a hand-written port.** A JavaScript re-implementation of a network
+is the kind of code that looks like it works while being subtly wrong, so it is
+checked rather than trusted, in two parts:
+
+* *Arithmetic.* Four cases ship with the OpenCV-rendered tensor, Python's
+  features and Python's output probabilities. The browser feeds the tensor
+  straight in, isolating the convolutions, the asymmetric SAME padding and the
+  float16 unpacking. The cases are deliberately **ambiguous** — two sit at
+  0.53 against 0.47 — because a saturated case would still land on the right
+  argmax with a transposed kernel and prove nothing. Agreement: **1.8 × 10⁻³**,
+  which is float16 rounding.
+* *Rasterisation.* JavaScript has no OpenCV, and `cv2.line(..., 2, LINE_AA)` is
+  not a 2 px stroke: measured directly, it covers a capsule of radius ≈1.65 px
+  and extends past both endpoints. A `<canvas>` stroke is roughly half that,
+  and canvas "lighter" compositing would *add* the joint dots that OpenCV
+  *overwrites*. So the raster is computed arithmetically by supersampled area
+  coverage instead — deterministic, and identical in every browser. Measured
+  against OpenCV over 3,000 held-out skeletons: mean pixel difference 0.0029,
+  label agreement **99.50%**, accuracy 98.23% against 98.37%. Every
+  disagreement was Standing/Walking; **fall recall and precision both stayed at
+  1.000 and no disagreement involved the fall class at all.**
+
+Both checks run in the browser on load and print to the console, and
+`scripts/selftest.py` executes them under Node so a regression fails CI rather
+than waiting to be noticed in a demo.
 
 **Robustness.** Under a 14× sweep of landmark jitter, overall accuracy falls
 from 95% to 78% while **fall recall stays at 1.000**. That is the failure mode

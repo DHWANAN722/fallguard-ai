@@ -381,23 +381,92 @@ scripted video sequence (standing → walking → collapse) the engine escalates
 **Live application: https://fallguard-ai-dhwanan.streamlit.app/**
 **Source: https://github.com/DHWANAN722/fallguard-ai**
 
-Deployed to Streamlit Community Cloud (Python 3.11). Four surfaces:
+Deployed to Streamlit Community Cloud (Python 3.11). Five surfaces:
 
 * **Image Analysis** — pose overlay, activity with confidence, class-probability
   bars, biomechanical evidence panel, alert banner, plus a view of the exact
   64×64×3 tensor the CNN receives.
 * **Video Monitoring** — per-frame analysis, annotated feed, fall-evidence
   timeline, activity distribution, emergency event log, downloadable incident CSV.
+* **Real-Time Monitoring** — the device camera, classified frame by frame at
+  video framerate, with a live skeleton overlay and escalating alert state.
 * **Live Simulation** — five scripted scenarios including a bending false-alarm test.
 * **Model & Metrics** — model comparison, per-class metrics, confusion matrix,
   training curves.
 
-**Engineering note.** The dashboard does not run TensorFlow. TensorFlow is a
-~600 MB install whose import alone costs seconds and which, alongside MediaPipe
-and OpenCV, does not reliably fit a free Streamlit Cloud container. The CNN is
+**Engineering note — no TensorFlow at serving time.** TensorFlow is a ~600 MB
+install whose import alone costs seconds and which, alongside MediaPipe and
+OpenCV, does not reliably fit a free Streamlit Cloud container. The CNN is
 trained with Keras, then exported to plain NumPy arrays and replayed by
 `src/cnn_numpy.py` in ~90 lines. The export is verified numerically and rejected
 if it disagrees with Keras by more than 1e-4 — measured agreement is **1.7e-06**.
+
+### Real-time inference at the edge
+
+Streamlit executes Python on a server, so classifying camera frames in Python
+would mean uploading each one and awaiting a reply — a request/response cycle
+rather than a video feed. The conventional remedy, WebRTC, is unavailable here
+for a concrete reason: `streamlit-webrtc` requires Streamlit ≥1.45 → protobuf
+≥5, while MediaPipe 0.10 requires protobuf 4. Installing it upgrades numpy,
+protobuf and Streamlit together and breaks pose estimation outright — verified
+by installation and measurement, not assumed.
+
+The model was therefore moved to the frames rather than the frames to the
+model. `scripts/export_web_model.py` folds each BatchNorm into its preceding
+convolution — `s = γ/√(σ²+ε)`, `W' = W·s`, `b' = β − μ·s` — which removes an
+entire operation from the serving path, then packs the 196,549 remaining
+parameters as float16 (384 KB). `assets/live_monitor.js` re-implements the
+inference runtime, the 126 feature descriptors and the biomechanical rule in
+JavaScript, and MediaPipe's WebAssembly build supplies the same BlazePose
+landmarks. Measured cost: **~9 ms per frame**, against a 33 ms budget at 30 fps.
+
+This is strictly better than the server-side design on the dimension that
+matters most for this application: **no video leaves the device at all**, which
+is the correct privacy posture for a camera pointed at an elderly person in
+their home, and it is also where a production system would put this
+computation — on the camera or an edge box.
+
+**Verification of the port.** A hand-written re-implementation of a neural
+network is precisely the class of code that appears to work while being subtly
+wrong, so it is verified in two independent parts rather than trusted:
+
+| Check | What it isolates | Tolerance | Measured |
+|---|---|---|---|
+| Arithmetic | convolutions, asymmetric SAME padding, float16 unpacking, fusion | 5 × 10⁻³ | **1.8 × 10⁻³** |
+| Rasterisation | reproducing `cv2.line(…, 2, LINE_AA)` without OpenCV | 1 × 10⁻² mean pixel | **3.4 × 10⁻³** |
+
+The arithmetic cases are deliberately **ambiguous** — two sit at 0.53 against
+0.47. A saturated case is a weak test, because a transposed kernel would still
+produce the correct argmax and appear to pass; near the decision boundary any
+error moves the numbers visibly.
+
+The rasteriser needed its own treatment because OpenCV's antialiased thick line
+is not what its parameters suggest. Measured directly, `cv2.line(…, 2,
+LINE_AA)` covers a capsule of radius ≈1.65 px and extends past both endpoints —
+a horizontal stroke fills three full rows and spills antialiased into two more.
+An HTML canvas 2 px stroke is roughly half that width, and canvas `lighter`
+compositing would *add* the joint dots that OpenCV *overwrites* with value 90.
+Both would have silently shifted every input away from the training
+distribution. The tensor is therefore rasterised arithmetically, by supersampled
+area coverage of that capsule, which is deterministic and free of any
+dependence on a browser's rendering back end.
+
+Because that raster is an approximation by construction, it was validated on
+outcomes rather than pixels, over 3,000 held-out test skeletons:
+
+| | OpenCV render | JavaScript render |
+|---|---|---|
+| Test accuracy | 98.37% | 98.23% |
+| Fall recall | 1.000 | **1.000** |
+| Fall precision | 1.000 | **1.000** |
+| Label agreement | — | **99.50%** |
+
+Every disagreement was Standing↔Walking, the boundary the model is already
+least certain about, and **no disagreement involved the fall class at all** —
+so the property the alarm depends on is preserved exactly. Both checks run in
+the browser on page load and are printed beneath the video, and
+`scripts/selftest.py` executes them under Node so a regression fails the test
+suite instead of surfacing during a demonstration.
 
 Accessibility: every alert state carries a text label and an icon as well as a
 colour, and the pulsing emergency animation respects

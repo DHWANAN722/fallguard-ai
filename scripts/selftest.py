@@ -62,6 +62,8 @@ def main() -> None:
     # ---------------------------------------------------------------- files
     print("\n[1] artefacts")
     for rel in ("models/fallguard_cnn.npz", "models/labels.json",
+                "models/fallguard_web.json", "assets/live_monitor.js",
+                "assets/live_ui.js", "src/webcam.py",
                 "reports/metrics.json", "reports/confusion_matrix.png",
                 "reports/training_curves.png", "reports/model_comparison.png",
                 "reports/per_class_metrics.png",
@@ -254,14 +256,83 @@ def main() -> None:
         check("app renders with no exception", not at.exception,
               at.exception[0].value if at.exception else "")
         check("five tabs present", len(at.tabs) == 5, str(len(at.tabs)))
-        check("camera capture widget present",
-              len(at.get("camera_input")) == 1,
-              f'{len(at.get("camera_input"))} camera_input widget(s)')
         at.button[0].click().run()
         check("simulation runs with no exception", not at.exception,
               at.exception[0].value if at.exception else "")
     except ImportError:
         print("       (streamlit testing harness unavailable — skipped)")
+
+    # ------------------------------------------------ live browser component
+    # The real-time tab runs the model in JavaScript, so the usual Python
+    # checks cover none of it. These verify the payload is complete and, where
+    # Node is available, actually execute the ported network and compare it
+    # against Python rather than trusting that it works.
+    print("\n[10] in-browser live monitoring")
+    import re
+    import subprocess
+
+    from src import webcam
+
+    ok_web, msg_web = webcam.available()
+    check("exported browser model present", ok_web, msg_web)
+
+    if ok_web:
+        spec_txt, core_js, ui_js = webcam._payload()
+        spec = json.loads(spec_txt)
+
+        check("golden cases carry a rendered tensor for the arithmetic check",
+              all("tensor_u8_b64" in g and "features" in g for g in spec["golden"]),
+              f"{len(spec['golden'])} cases")
+        check("golden cases are genuinely ambiguous (a weak test proves nothing)",
+              max(sorted(g["expected"])[-1] - sorted(g["expected"])[-2]
+                  for g in spec["golden"]) < 0.95,
+              "max top-2 margin "
+              f"{max(sorted(g['expected'])[-1] - sorted(g['expected'])[-2] for g in spec['golden']):.3f}")
+
+        # every element the UI addresses must exist in the component markup
+        ids = set(re.findall(r'\$\("([A-Za-z0-9_]+)"\)', ui_js))
+        missing = sorted(i for i in ids if f'id="{i}"' not in webcam.BODY)
+        check("every DOM id referenced by the UI exists", not missing,
+              f"{len(ids)} ids" if not missing else f"missing {missing}")
+
+        check("the canvas rasteriser is gone (it did not match OpenCV)",
+              "RCTX" not in core_js and "createElement" not in core_js)
+
+        # the port itself, executed
+        try:
+            node = subprocess.run(["node", "--version"], capture_output=True,
+                                  text=True, timeout=20)
+        except (FileNotFoundError, subprocess.TimeoutExpired):
+            node = None
+        if node and node.returncode == 0:
+            head = ui_js.split("/* ---------------------------------------"
+                               "--------------------- alert state */")[0]
+            head = head.replace(
+                "const $ = (id) => document.getElementById(id);", "")
+            bundle = os.path.join(ROOT, "reports", "_port_check.mjs")
+            with open(bundle, "w") as fh:
+                fh.write(f"const SPEC={spec_txt};\n{core_js}\n{head}\n"
+                         "export {selfTest};\n")
+            driver = (
+                "globalThis.atob=(b)=>Buffer.from(b,'base64').toString('binary');"
+                f"const m=await import('file://{bundle}');"
+                "const r=m.selfTest();"
+                "console.log(JSON.stringify(r));"
+                "process.exit(r.ok?0:1);")
+            res = subprocess.run(["node", "--input-type=module", "-e", driver],
+                                 capture_output=True, text=True, timeout=180)
+            os.remove(bundle)
+            tail = res.stdout.strip().splitlines()[-1] if res.stdout.strip() else "{}"
+            try:
+                r = json.loads(tail)
+            except json.JSONDecodeError:
+                r = {}
+            check("JavaScript port reproduces Python", res.returncode == 0,
+                  f"arithmetic Δ {r.get('arith', float('nan')):.2e}, "
+                  f"raster Δ {r.get('raster', float('nan')):.5f}"
+                  if r else (res.stderr.strip().splitlines() or ["no output"])[-1])
+        else:
+            print("       (node unavailable — port executed only in the browser)")
 
     # --------------------------------------------------------------- done
     print("\n" + "=" * 74)

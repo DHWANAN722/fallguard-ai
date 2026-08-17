@@ -39,7 +39,7 @@ ROOT = os.path.dirname(os.path.abspath(__file__))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
-from src import theme, video as vid                                  # noqa: E402
+from src import theme, video as vid, webcam                          # noqa: E402
 from src.infer import (ALERT, EMERGENCY, LEVEL_STYLE, NORMAL, WATCH,  # noqa: E402
                        FallDetector)
 from src.render import draw_overlay, render_cnn                      # noqa: E402
@@ -628,92 +628,44 @@ with tab_vid:
 
 
 # ==========================================================================
-# TAB 3 — simulation
-# ==========================================================================
-
-# ==========================================================================
 # TAB 3 — real-time monitoring from the device camera
 # ==========================================================================
 with tab_live:
-    st.markdown("#### Monitor a live camera")
+    st.markdown("#### Real-time monitoring")
     st.caption(
-        "Opens your device camera and runs the full pipeline — BlazePose, the "
-        "hybrid CNN and the biomechanical rule — on the frame you capture. "
-        "Nothing is uploaded or stored: the frame is reduced to 33 landmarks in "
-        "memory and discarded when you take the next one."
+        "Your camera opens and every frame is classified as it arrives — the "
+        "skeleton is drawn live over the video and the label, confidence and "
+        "alert level update continuously. Nothing is uploaded: the pose "
+        "estimator and the trained network both run inside this browser."
     )
 
-    if not ok_pose:
-        st.warning("Pose estimation unavailable, so the camera cannot be "
-                   "analysed. The Live Simulation tab still works.", icon="⚠️")
-    else:
-        shot = st.camera_input("Camera", key="live_cam",
-                               label_visibility="collapsed")
+    webcam.render(st)
 
-        if shot is None:
-            st.info(
-                "Allow camera access when your browser asks, then press the "
-                "shutter button to analyse a frame. Stand back far enough that "
-                "your whole body is in view — head to feet — or the pose "
-                "estimator will reject the frame as unreliable.", icon="ℹ️")
-
-            st.markdown('<hr class="fg-rule">', unsafe_allow_html=True)
-            st.markdown(
-                "**Why a capture button rather than continuous video?** "
-                "Continuous server-side video on Streamlit Cloud needs WebRTC, "
-                "which requires a newer Streamlit, which requires protobuf 5+ "
-                "— and MediaPipe 0.10 requires protobuf 4. The two cannot "
-                "coexist, so the honest choice was a capture that runs the real "
-                "model over a genuinely reliable dependency stack. A production "
-                "deployment would run this loop on the camera itself or on an "
-                "edge box, which is where a real care-home system would put it "
-                "anyway: at ~1.5 ms per frame the classifier is nowhere near "
-                "the bottleneck.")
-        else:
-            frame = cv2.imdecode(np.frombuffer(shot.getvalue(), np.uint8),
-                                 cv2.IMREAD_COLOR)
-            if frame is None:
-                st.error("Could not decode the captured frame.", icon="🚫")
-            else:
-                if max(frame.shape[:2]) > 1280:
-                    sc = 1280 / max(frame.shape[:2])
-                    frame = cv2.resize(frame, None, fx=sc, fy=sc,
-                                       interpolation=cv2.INTER_AREA)
-
-                with st.spinner("Running BlazePose + CNN ..."):
-                    res = estimate_pose(frame)
-
-                if res is None:
-                    st.markdown(alert_banner(
-                        WATCH,
-                        "No reliable pose in this frame. Step back so your whole "
-                        "body is visible, improve the lighting, and capture again."
-                    ), unsafe_allow_html=True)
-                    st.image(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB),
-                             caption="captured frame", use_container_width=True)
-                else:
-                    P, V = res
-                    detector.reset()
-                    pred = detector.predict(P, V, timestamp=0.0, temporal=False)
-                    render_result(frame, pred, "live camera capture · "
-                                               "pose landmarks overlaid")
-
-                    st.markdown('<hr class="fg-rule">', unsafe_allow_html=True)
-                    st.markdown("### Monitoring analytics")
-                    s = detector.summary()
-                    cols = st.columns(5)
-                    for c, (lab, val, col) in zip(cols, [
-                        ("Total detections", f"{s['total']}", theme.CYAN),
-                        ("Falls detected", f"{s['fall_frames']}", theme.RED),
-                        ("Normal activity",
-                         f"{s['normal_activity_frames']}", theme.VIOLET),
-                        ("Confidence", f"{pred.confidence:.0%}", theme.AMBER),
-                        ("Alert level",
-                         LEVEL_STYLE[pred.level][0].split("—")[0].strip(),
-                         LEVEL_STYLE[pred.level][1]),
-                    ]):
-                        c.markdown(metric_tile(lab, val, col),
-                                   unsafe_allow_html=True)
+    st.markdown('<hr class="fg-rule">', unsafe_allow_html=True)
+    st.markdown(
+        "**How this runs at framerate.** Streamlit executes Python on a "
+        "server, so any design that classifies frames in Python has to upload "
+        "each one and wait for a reply — that is a request/response cycle, not "
+        "a video feed, and it is why a capture button was the only honest "
+        "option at first. The fix was to move the model to where the frames "
+        "already are. `scripts/export_web_model.py` folds every BatchNorm into "
+        "the convolution before it and packs the weights into 384 KB of "
+        "float16; `assets/live_monitor.js` re-implements the inference runtime, "
+        "all 126 feature descriptors and the biomechanical rule in JavaScript; "
+        "MediaPipe's WebAssembly build supplies the same BlazePose landmarks "
+        "the Python path uses. WebRTC was rejected for a real reason — it "
+        "needs protobuf 5+, MediaPipe 0.10 needs protobuf 4 — and this "
+        "approach sidesteps that conflict entirely while being both faster "
+        "and more private than uploading video would have been.")
+    st.markdown(
+        "**The port is verified, not assumed.** A JavaScript re-implementation "
+        "of a neural network is exactly the kind of code that appears to work "
+        "while being quietly wrong, so four deliberately *ambiguous* test "
+        "cases are embedded with the probabilities Python produced for them — "
+        "two sit at roughly 0.53 against 0.47, where a transposed kernel or an "
+        "off-by-one padding offset moves the numbers visibly instead of hiding "
+        "behind the argmax. The browser replays them on load; the deviation is "
+        "printed under the video and to the developer console.")
 
 
 with tab_sim:

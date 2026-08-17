@@ -238,25 +238,73 @@ chart, then to the event log and the CSV download button.]`
 
 ---
 
-# SCENE 5b · Real-time camera — 7:00 to 7:40
+# SCENE 5b · Real-time camera — 7:00 to 8:00
 
-`[SCREEN: Click the "REAL-TIME MONITORING" tab. Your browser will ask for camera
-permission the first time — click Allow. Stand back so your whole body is in
-frame before you press the shutter.]`
+**This is the strongest thirty seconds in the whole recording — a live model
+reacting to you in real time is far more convincing than any static figure.
+Give it room.**
 
-> **The system also runs on a live camera. This tab opens the device camera and
-> runs the same pipeline on the frame I capture.**
+`[SCREEN: Click the "REAL-TIME MONITORING" tab. Before you speak, point the
+cursor at the small grey line under the video that reads "verified against
+Python in this browser".]`
 
-`[SCREEN: Press the shutter button. Wait for the result.]`
+> **The last tab runs live. And before I open the camera, notice this line: the
+> model checked itself when the page loaded.**
 
-> **Same output as before — the skeleton, the classification, the biomechanical
-> evidence and the alert level, this time on a frame taken a second ago.**
+> **The network here is not the Python one — it is a JavaScript port of it, so
+> that it can run inside the browser. A re-implementation like that is exactly
+> the kind of thing that appears to work while being quietly wrong, so four
+> test cases are shipped with it, along with the exact probabilities Python
+> produced for them. Two of those sit at about fifty-three percent against
+> forty-seven, where any mistake in the arithmetic moves the numbers instead of
+> hiding behind the winning class. The browser replays them on load and reports
+> the difference. It is under two thousandths.**
 
-> **And the same privacy property holds: the frame is reduced to thirty-three
-> landmarks in memory and discarded. Nothing is uploaded or stored.**
+`[SCREEN: Click "START MONITORING". The browser will ask for camera permission
+the first time — click Allow. Step back so your whole body is in frame.]`
 
-*(If you would rather not appear on camera, skip this scene — the brief doesn't
-require it, and Scenes 3 to 5 already cover pose output, predictions and alerts.)*
+> **Now the camera. Nothing is being uploaded — the pose estimator and the
+> classifier are both running in this browser, on this machine.**
+
+`[SCREEN: Stand still for about three seconds. Let the viewer see the skeleton
+tracking you and the label holding steady on "Standing".]`
+
+> **The skeleton is drawn on every frame, and the classification, the
+> confidence and the biomechanical measurements update continuously — this is
+> the model running at video framerate, not a snapshot.**
+
+`[SCREEN: Walk slowly across the frame. The label should switch to "Walking".]`
+
+> **Walking.**
+
+`[SCREEN: Now bend forward slowly, as if picking something off the floor. Hold
+it. The banner should stay green or amber — it must NOT say fall.]`
+
+> **Now the case that matters. Bending over puts my trunk at the same angle as
+> a collapse — this is the posture that makes a naive detector cry wolf. The
+> network and the independent geometric rule both have to agree before an alert
+> is raised, and here they do not, so no alarm.**
+
+`[SCREEN: Lower yourself to the floor and lie down, staying in frame. Hold for
+four or five seconds so the alert escalates.]`
+
+> **And a fall. Trunk angle, body aspect ratio and pelvis height all move
+> together, both detectors agree, and once it persists the alert escalates to
+> emergency.**
+
+`[SCREEN: Stand back up. Show the banner returning to all clear, then point at
+the frames/alerts counters.]`
+
+*(If you would rather not appear on camera, skip from "START MONITORING"
+onward — but do still show the verification line and describe the tab, since it
+is the strongest single piece of engineering evidence in the project. Scenes 3
+to 5 already cover pose output, predictions and alerts.)*
+
+*Practical notes: work in a well-lit room with a few metres of clear floor, and
+frame the camera so your whole body from head to feet is visible — the pose
+gate deliberately rejects partial skeletons and will show "pose too unreliable"
+rather than guess. Land on something soft, and rehearse the sequence once
+before recording.*
 
 ---
 
