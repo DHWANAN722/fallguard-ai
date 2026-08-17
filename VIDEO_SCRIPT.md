@@ -1,299 +1,402 @@
 # Screen-recording script — FallGuard AI
 
-**Target length: 8–10 minutes.** The brief requires: project overview, dataset
-explanation, pose estimation outputs, model prediction screenshots, Streamlit
-dashboard, evaluation metrics, confusion matrix, alert system demonstration.
-All eight are covered below, in order.
+**Target: 8–10 minutes.** Everything in **bold** is spoken aloud.
+Everything in `[SCREEN: ...]` is what you do with the mouse at that moment.
 
-**Before you record**
-
-- Open https://fallguard-ai-dhwanan.streamlit.app/ (the deployed app, not localhost) so the live link is visible in the address bar.
-- Have ready: one photo of a person standing, one of someone bending over, one
-  of someone lying on the floor, and one short clip (10–20 s) of a fall.
-- Open `notebooks/FallGuard_Training.ipynb` in a second tab, already executed.
-- Close notifications. Record at 1080p.
-
-Read the **bold** lines aloud; the italics are stage directions.
+The brief requires eight things, and all eight are covered in order:
+project overview · dataset explanation · pose estimation outputs · model
+prediction screenshots · Streamlit dashboard · evaluation metrics · confusion
+matrix · alert system demonstration.
 
 ---
 
-## Scene 1 · Overview (0:00 – 1:15)
+## Before you press record — 5 minutes of setup
 
-*Screen: the deployed dashboard, top of the page.*
+1. **Open two browser tabs, in this order:**
+   - Tab 1: https://fallguard-ai-dhwanan.streamlit.app/
+   - Tab 2: `notebooks/FallGuard_Training.ipynb` on GitHub —
+     https://github.com/DHWANAN722/fallguard-ai/blob/main/notebooks/FallGuard_Training.ipynb
+     (GitHub renders the notebook with all the charts already visible; you do
+     not need Colab.)
+2. **Wake the app up.** Click through all four tabs once, and click one sample,
+   so nothing is cold when you record. Then reload Tab 1 so it is back to a
+   clean Image Analysis view.
+3. **Silence everything.** Do Not Disturb on. Close Slack, Mail, Messages.
+4. **Hide clutter.** Close every other tab. Hide your bookmarks bar
+   (`Cmd + Shift + B`) so the URL is prominent.
+5. **Start recording:** `Cmd + Shift + 5` → **Record Entire Screen** →
+   **Options → Microphone → MacBook Air Microphone** → **Record**.
+   Stop from the ■ in the menu bar. The file lands on your Desktop.
 
-> **Hi, I'm [name], and this is FallGuard AI — an elderly fall detection and
-> healthcare monitoring system built for Formative Assessment 2.**
->
+**Delivery notes.** Speak slower than feels natural — about 20% slower. Pause
+for a full second after each click so the viewer's eye catches up. If you
+fumble a sentence, stop, pause three seconds, and say it again from the start
+of that sentence; it is trivial to trim later, and re-recording the whole thing
+is not.
+
+---
+
+# SCENE 1 · Overview — 0:00 to 1:20
+
+`[SCREEN: Tab 1, the live app, scrolled to the very top. The URL bar is visible.]`
+
+> **Hi, I'm Dhwanan Bhatt, and this is FallGuard AI — an elderly fall detection
+> and healthcare monitoring system, built for Formative Assessment 2 of the
+> Machine Learning and Deep Learning module.**
+
+> **This is the live application, deployed on Streamlit Cloud — you can see the
+> URL at the top of the screen.**
+
+`[SCREEN: Move the mouse up and circle the address bar slowly once.]`
+
 > **Falls are the leading cause of injury-related death in adults over 65. But
-> the hard part of building a monitor for this isn't detecting a fall. It's
-> detecting one without crying wolf. A system that alerts every time a resident
-> bends down to pick something up gets muted within a week — and a muted monitor
-> detects nothing at all.**
->
-> **So the question I designed around wasn't "can I detect falls", it was "can I
-> detect falls without false alarms". That shapes everything you're about to
-> see.**
+> when I started building this, I realised the hard problem isn't detecting a
+> fall. It's detecting a fall without crying wolf.**
 
-*Scroll slowly down the page so the four tabs are visible.*
+> **A monitor that alerts every time a resident bends down to pick something up
+> gets muted within a week. And a muted monitor detects nothing at all. So the
+> question I designed around wasn't "can I detect falls" — it was "can I detect
+> falls without false alarms". That single decision shapes everything you're
+> about to see.**
 
-> **The pipeline is: a camera frame goes to MediaPipe BlazePose, which returns
-> 33 body landmarks. Those landmarks — not the photograph — go to a hybrid
-> convolutional network that classifies the activity into one of five classes.
-> Then a separate, transparent geometric rule has to agree before any alert is
-> raised.**
->
-> **Headline result: 98.4% accuracy on held-out test data, with perfect
-> precision and perfect recall on the fall class, and zero false alarms on
-> bending.**
+`[SCREEN: Slowly scroll down a little so all four tabs are clearly visible, then
+scroll back up. Hover over each tab name in turn as you say the next lines.]`
 
----
+> **The dashboard has four sections. Image Analysis runs a single photograph.
+> Video Monitoring runs a clip frame by frame. Live Simulation demonstrates the
+> alert logic without any footage. And Model and Metrics shows the training
+> evidence.**
 
-## Scene 2 · Dataset (1:15 – 2:45)
+`[SCREEN: Point at the sidebar on the left.]`
 
-*Switch to the notebook, section 2. Show the 5×6 grid of skeleton samples.*
-
-> **First, the data — and I want to be upfront about this.**
->
-> **Kaggle wasn't reachable from my build environment, so the training corpus is
-> procedurally generated: a forward-kinematic model of the human body driven by
-> joint-angle distributions from the gait and fall-biomechanics literature.**
->
-> **What makes that defensible is that the classifier never sees pixels. It sees
-> normalised landmark geometry — exactly the representation MediaPipe produces
-> from a real photograph. So the gap between synthetic and real is much narrower
-> than it would be for an image model. And I ship a script,
-> `ingest_kaggle.py`, that converts any real labelled dataset into the same
-> format so the whole pipeline retrains unchanged.**
-
-*Point at the sample grid.*
-
-> **Every sample is degraded the way real deployments degrade it: camera roll,
-> camera yaw and foreshortening, landmark jitter, and occlusion — you can see
-> here where the legs are missing because furniture is in the way.**
-
-*Point specifically at row 1 (Fall) and row 5 (Normal Activity).*
-
-> **These two rows are the whole design. Row one is a fall. Row five is
-> "Normal Activity" — which I defined specifically as bending and reaching.**
->
-> **Both have a near-horizontal trunk. The difference is where the pelvis is and
-> what the legs are doing. Bending is the posture that breaks naive fall
-> detectors, so I made it a first-class category the model has to learn against
-> rather than an afterthought.**
-
-*Show the split table.*
-
-> **20,000 samples, split 70/15/15 — stratified within each class so validation
-> and test stay perfectly balanced.**
+> **And on the left are the live detection thresholds and the video sampling
+> controls, so everything I'm about to describe can be adjusted and tested.**
 
 ---
 
-## Scene 3 · Pose estimation output (2:45 – 3:45)
+# SCENE 2 · Dataset — 1:20 to 3:00
 
-*Dashboard → Image Analysis tab. Upload the standing photo.*
+`[SCREEN: Switch to Tab 2 — the notebook on GitHub. Scroll to section 2,
+"Step 5a — The dataset".]`
 
-> **Let's run a real photograph through it.**
+> **First, the data — and I want to be completely upfront about this.**
 
-*Wait for the result.*
+> **Kaggle was not reachable from the environment I built this in. So rather
+> than fake it, the training corpus is procedurally generated: a two-dimensional
+> forward-kinematic model of the human body, driven by joint-angle distributions
+> taken from the gait and fall-biomechanics literature.**
 
-> **MediaPipe has localised 33 landmarks — you can see the neon skeleton overlaid
-> on the original image. Cyan is the torso, magenta the arms, green the legs.**
->
-> **The system classifies this as Standing, with the confidence shown here.**
+> **What makes that defensible is that my classifier never sees pixels. It sees
+> normalised landmark geometry — which is exactly what MediaPipe produces from a
+> real photograph. So the gap between synthetic and real is far narrower than it
+> would be for an image-based model. And I ship a script, ingest underscore
+> kaggle dot py, that converts any real labelled dataset into the identical
+> format, so the whole pipeline retrains unchanged.**
 
-*Expand the "What the CNN actually sees" panel.*
+`[SCREEN: Scroll down to the 5×6 grid of coloured skeletons.]`
 
-> **And this is important — this is the actual input to the network. A 64×64
-> three-channel tensor with the bones split by body part. The photograph goes no
-> further than the pose estimator.**
->
-> **That's a privacy property by construction: no identifiable imagery ever
-> reaches the model, or would need to be stored by a deployed system in a care
-> home.**
+> **Here are samples from the corpus. Every one is degraded the way real
+> deployments degrade: camera roll, camera yaw and foreshortening, landmark
+> jitter, and occlusion.**
 
----
+`[SCREEN: Point at any skeleton in the grid that is missing its legs.]`
 
-## Scene 4 · Prediction and evidence (3:45 – 5:00)
+> **You can see occlusion here — the legs are missing, because in a real room
+> furniture would be in the way.**
 
-*Upload the fallen-person photo.*
+`[SCREEN: Move the mouse to the first row, then down to the fifth row.]`
 
-> **Now a fall.**
+> **Now, these two rows are the entire design of this project. Row one is
+> "Fall Detected". Row five is "Normal Activity" — and I defined Normal Activity
+> very specifically as bending and reaching.**
 
-*Let the red EMERGENCY-style banner appear.*
+> **Look at them. Both have a near-horizontal trunk. The difference is where the
+> pelvis is, and what the legs are doing. Bending over is the posture that
+> breaks naive fall detectors, so instead of ignoring it, I made it a
+> first-class category that the model is forced to learn against.**
 
-> **Fall Detected, and the alert banner has gone red. But look at the panel on
-> the right — this is what I think makes the system trustworthy rather than just
-> accurate.**
+`[SCREEN: Scroll to the split table showing train / val / test counts.]`
 
-*Point at the biomechanical evidence rows.*
-
-> **Trunk inclination, bounding-box aspect ratio, pelvis height in frame, leg
-> verticality. These are quantities a clinician can actually reason about. The
-> system isn't just saying "fall" — it's showing its working.**
->
-> **And that bottom number, the biomechanical score, is computed by a rule that
-> is completely independent of the neural network. Both have to agree before an
-> alert fires.**
-
-*Now upload the bending photo. This is the money shot.*
-
-> **Here's the test that matters. This person is bending over to pick something
-> up. Trunk angle is around 60 degrees — a naive detector fires here.**
-
-*Point at the ALL CLEAR banner.*
-
-> **All clear. Classified as Normal Activity. The pelvis is still at standing
-> height and the legs are still vertical, so the biomechanical rule refuses to
-> corroborate — and no alert is raised.**
->
-> **That single case is the difference between a system people keep switched on
-> and one they mute.**
+> **Twenty thousand samples in total, split seventy, fifteen, fifteen — and the
+> split is stratified within each class, so validation and test stay perfectly
+> balanced at six hundred samples per class.**
 
 ---
 
-## Scene 5 · Video monitoring and the alert system (5:00 – 6:30)
+# SCENE 3 · Pose estimation output — 3:00 to 4:10
 
-*Video Monitoring tab. Upload the fall clip.*
+`[SCREEN: Switch back to Tab 1. You should be on the Image Analysis tab.
+Click the "Standing" button.]`
 
-> **Single frames only get you so far. A fall is an event, not a frame.**
+> **Now let's run a real photograph through it. I've bundled three of my own
+> photos into the app, so anyone opening this link can try it in one click.**
 
-*Let it process.*
+`[SCREEN: Wait for the result to appear. Do not talk over the loading spinner.]`
 
-> **The system sampled the clip at 6 frames per second and ran pose estimation
+> **That's me standing. MediaPipe BlazePose has localised thirty-three body
+> landmarks, and you can see the skeleton drawn on top of the actual
+> photograph. Cyan is the torso, magenta is the arms, green is the legs.**
+
+`[SCREEN: Point at the "Predicted activity" card on the right.]`
+
+> **The system classifies this as Standing, at a hundred percent confidence,
+> and the alert banner says ALL CLEAR.**
+
+`[SCREEN: Scroll down and click to expand "What the CNN actually sees".]`
+
+> **And this is the part I think is most important. This little image is the
+> actual input to the neural network — a sixty-four by sixty-four, three-channel
+> tensor, with the bones split by body part.**
+
+> **The photograph goes no further than the pose estimator. That's a privacy
+> property built into the architecture: in a real care home, no identifiable
+> image of a resident ever reaches the model, and none would need to be stored.**
+
+---
+
+# SCENE 4 · The false-alarm test — 4:10 to 5:40
+
+**This is the most important 90 seconds of the video. Do not rush it.**
+
+`[SCREEN: Scroll back up. Click the "Fallen on floor" button.]`
+
+> **Now a fall. This is me lying on the floor.**
+
+`[SCREEN: Wait for the orange FALL ALERT banner. Pause a beat.]`
+
+> **Fall Detected, ninety-six point six percent, and the banner has gone to FALL
+> ALERT. But look at the panel on the right — this is what makes the system
+> trustworthy rather than just accurate.**
+
+`[SCREEN: Scroll so the "Biomechanical evidence" panel is visible. Move the
+mouse slowly down the four rows as you name them.]`
+
+> **Trunk inclination, eighty-nine degrees — almost horizontal. Bounding-box
+> aspect ratio, zero point six seven — wider than it is tall. Pelvis height in
+> frame. And leg verticality, zero point zero four — the legs are nowhere near
+> underneath the body.**
+
+> **These are quantities a clinician can actually reason about. The system isn't
+> just saying "fall" — it's showing its working.**
+
+`[SCREEN: Point at the "Biomechanical score" row at the bottom of the panel.]`
+
+> **And this bottom number, the biomechanical score, is one hundred percent. It
+> is computed by a completely separate geometric rule that does not use the
+> neural network at all. Both of them have to agree before any alert is raised.**
+
+`[SCREEN: Scroll up and click the "Bending over" button.]`
+
+> **So here's the test that actually matters. This is me bending over to pick a
+> pen up off the floor.**
+
+`[SCREEN: Wait for the result. Let the green ALL CLEAR banner sit on screen for
+a couple of seconds before speaking.]`
+
+> **ALL CLEAR. Classified as Normal Activity, one hundred percent.**
+
+`[SCREEN: Point at the trunk inclination row.]`
+
+> **And look at the trunk angle — eighty degrees. That is nearly as horizontal
+> as the fall I just showed you. A detector that thresholds on trunk angle alone
+> fires here, every single time.**
+
+`[SCREEN: Point at the pelvis height and leg verticality rows.]`
+
+> **But the pelvis is still at standing height, and leg verticality is zero
+> point nine six — the legs are still directly underneath the body. So the
+> biomechanical rule refuses to corroborate, the score stays at twenty percent,
+> and no alarm is raised.**
+
+> **That one case is the difference between a system people keep switched on,
+> and one they mute in the first week.**
+
+---
+
+# SCENE 5 · Video monitoring and the alert system — 5:40 to 7:20
+
+`[SCREEN: Click the "VIDEO MONITORING" tab, then click the "Fall clip" button.]`
+
+> **Single frames only get you so far, though. A fall is an event, not a frame.
+> So here's a real clip of me walking and then falling.**
+
+`[SCREEN: Wait through the progress bar. Stay quiet while it processes — it
+takes a few seconds.]`
+
+> **The system sampled the clip at six frames per second and ran pose estimation
 > and classification on every sampled frame.**
 
-*Point at the timeline chart.*
+`[SCREEN: Point at the annotated feed, which is looping on its own.]`
 
-> **This timeline shows both detectors over time — the red line is the network's
-> fall probability, the blue dotted line is the independent biomechanical
-> score. You can see them both spike at the moment of impact.**
+> **This is the annotated monitoring feed, playing on a loop. You can watch the
+> skeleton track me through the movement, and the label change as the
+> classification changes.**
 
-*Point at the alert banner and the event log.*
+`[SCREEN: Point at the small warning line under the alert banner that reads
+"...sampled frames contained no detectable person and were skipped".]`
 
-> **Notice the escalation. A single corroborated frame is an ALERT. It only
-> becomes an EMERGENCY once the state persists across consecutive frames, or if
-> it coincides with rapid pelvis descent — the impact signature.**
->
-> **That's what separates someone falling from someone who was already sitting
-> on the floor.**
+> **And notice this line. Several frames were skipped. During the fastest part
+> of the fall there's motion blur, and the pose estimator's confidence collapses
+> — so the system rejects those frames instead of guessing. I added that
+> deliberately, because a fall alert built on unreliable landmarks is worse than
+> no alert at all.**
 
-*Scroll to the analytics tiles and the event log.*
+`[SCREEN: Scroll down to the "Fall evidence over time" line chart.]`
 
-> **And these are the monitoring metrics a caregiver would see: total detections,
-> falls detected, normal activity, mean confidence, activity distribution, and a
-> full emergency event log — which downloads as a CSV for the incident record.**
+> **This timeline shows both detectors over time. The solid red line is the
+> neural network's fall probability. The dotted blue line is the independent
+> biomechanical score. You can see the red line jump to one hundred percent at
+> the moment of impact.**
 
-*Optional: Live Simulation tab → run "Bending to pick something up".*
+`[SCREEN: Scroll up briefly to the alert banner, then back down to the event log
+table.]`
 
-> **There's also a simulation tab for demonstrating the logic without footage —
-> including a dedicated bending false-alarm test.**
+> **The clip reaches FALL ALERT. And here's the escalation logic: one
+> corroborated frame is an ALERT. It only becomes a full EMERGENCY if the state
+> persists across four consecutive frames, or if it coincides with a rapid
+> pelvis-descent signature — an impact.**
+
+> **That's the difference between someone falling, and someone who was already
+> sitting on the floor.**
+
+`[SCREEN: Scroll to the six metric tiles, then to the activity distribution
+chart, then to the event log and the CSV download button.]`
+
+> **And these are the monitoring metrics a caregiver would actually see. Total
+> detections, falls detected, normal activity, mean confidence, alert frames.
+> The activity distribution chart. And a full emergency event log with
+> timestamps, which downloads as a CSV for the incident record.**
 
 ---
 
-## Scene 6 · Evaluation metrics and confusion matrix (6:30 – 8:15)
+# SCENE 6 · Evaluation metrics and confusion matrix — 7:20 to 9:00
 
-*Model & Metrics tab.*
+`[SCREEN: Click the "MODEL & METRICS" tab.]`
 
-> **Now the evaluation. Everything here is on a held-out test split of 3,000
-> samples that no model saw during training or model selection.**
+> **Now the evaluation. Everything here is on a held-out test split of three
+> thousand samples that no model saw during training or model selection.**
 
-*Point at the model comparison table.*
+`[SCREEN: Point at the four metric tiles across the top.]`
+
+> **A hundred and ninety-seven thousand parameters, fourteen thousand training
+> samples, ninety-eight point four percent test accuracy, and a hundred percent
+> fall recall.**
+
+`[SCREEN: Point at the "Validation vs test" table.]`
+
+> **I'm showing validation and test side by side deliberately. Ninety-eight
+> point nine on validation, ninety-eight point four on test. They agree closely,
+> which is the evidence that the test score isn't itself overfitted — I selected
+> the weights on validation and scored the test split once, at the end.**
+
+`[SCREEN: Scroll to the "Model comparison" table.]`
 
 > **The brief recommended a CNN, but I didn't want to just assert that, so I
-> trained three models on identical splits. The hybrid CNN at 98.4%, a Random
-> Forest at 98.3%, and an SVM at 95.3%.**
->
-> **And there's a story here. My first version was a pure CNN — it got 91%, and
-> almost all of its errors were confusing walking with standing. Meanwhile the
-> Random Forest, which gets the distance between the ankles as an explicit
-> number, beat it.**
->
+> trained three models on identical splits. My hybrid CNN at ninety-eight point
+> four, a Random Forest at ninety-eight point three, and an SVM at ninety-five
+> point three.**
+
+> **And there's a real story here. My first version was a pure CNN — it scored
+> ninety-one percent, and almost every error was confusing walking with
+> standing. Meanwhile the Random Forest, which receives the distance between the
+> ankles as an explicit number, beat it.**
+
 > **The CNN wasn't short of capacity. It was short of precision in one specific
-> measurement — at 64×64 the gap between the ankles is only a few pixels. So
-> instead of choosing, I fused both: a convolutional branch for overall posture
-> shape, and a dense branch for the exact geometry. The hybrid beats both
-> parents.**
+> measurement — at sixty-four by sixty-four, the gap between the ankles is only
+> a few pixels. So instead of choosing between them, I fused both: a
+> convolutional branch for overall posture shape, and a dense branch for the
+> exact geometry. The hybrid beats both of its parents.**
 
-*Scroll to the confusion matrix.*
+`[SCREEN: Scroll down to the confusion matrix image.]`
 
-> **This is the confusion matrix, and I want to draw attention to one thing.**
+> **This is the confusion matrix on the test split, and I want to draw attention
+> to one thing specifically.**
 
-*Point at the top row and the first column.*
+`[SCREEN: Move the mouse along the top row of the matrix, then down the first
+column.]`
 
-> **The fall row is clean and the fall column is clean. Six hundred falls, six
+> **The fall row is clean, and the fall column is clean. Six hundred falls, six
 > hundred detected — nothing missed. And nothing else was ever mistaken for a
 > fall.**
->
+
 > **In a safety system those two numbers matter far more than overall accuracy,
 > because the costs are wildly asymmetric. A missed fall can be fatal. A false
-> alarm destroys the trust that keeps the system running.**
->
-> **The remaining errors are walking versus standing — which is genuinely
-> ambiguous from a single still frame, and which the video path resolves
+> alarm destroys the trust that keeps the system switched on.**
+
+> **The remaining errors are walking versus standing, which is genuinely
+> ambiguous from a single still frame — and which the video path resolves
 > temporally.**
 
-*Point at the training curves.*
+`[SCREEN: Scroll to the training curves image.]`
 
-> **Training converged at epoch 22 with validation accuracy of 98.9%.**
+> **Training converged at epoch twenty-two, with validation accuracy just under
+> ninety-nine percent.**
 
-*Optional but strong — switch to notebook §4.1.*
+`[SCREEN: Scroll further to the "Prediction gallery" contact sheet.]`
 
-> **One debugging note I'd flag. My first runs showed 93% training accuracy
-> against 25% validation — which looks exactly like catastrophic overfitting.
-> It wasn't. Evaluating on the training data itself in inference mode also gave
-> 24%, and generalisation can't explain that.**
->
-> **It was BatchNorm. Keras defaults to a momentum of 0.99, and with only 72
-> steps per epoch the moving statistics used at inference were still dominated
-> by their initial values. Setting momentum to 0.9 fixed it outright.**
+> **And this is the prediction gallery — the model's output across all five
+> activity classes.**
 
 ---
 
-## Scene 7 · Deployment and close (8:15 – 9:30)
+# SCENE 7 · Deployment, limitations, close — 9:00 to 10:00
 
-*Show the browser URL bar with the live Streamlit link.*
+`[SCREEN: Scroll up so the URL bar is visible again.]`
 
-> **The whole thing is deployed on Streamlit Community Cloud at this URL, and
-> the source is on GitHub.**
+> **To summarise. The whole system is deployed and live at this URL, and the
+> source is on GitHub with the training notebook, the written report, and a
+> fifty-check test suite.**
 
-*Briefly show the repo.*
+> **Ninety-eight point four percent test accuracy. Perfect precision and perfect
+> recall on the fall class. Zero false alarms on bending. And about one point
+> three milliseconds per frame.**
 
 > **One deployment decision worth mentioning: the dashboard doesn't run
-> TensorFlow at all. TensorFlow is a 600-megabyte dependency that doesn't
-> reliably fit alongside MediaPipe and OpenCV in a free container. So I train
-> with Keras, then export the weights to plain NumPy arrays and run inference in
-> about 90 lines of NumPy.**
->
-> **And the export is verified — the training script rejects it if the NumPy
-> runtime disagrees with Keras by more than one part in ten thousand. Measured
-> agreement is about two parts in a million.**
+> TensorFlow at all. TensorFlow is a six-hundred-megabyte dependency that
+> doesn't reliably fit alongside MediaPipe in a free container. So I train with
+> Keras, then export the weights to plain NumPy and run inference in about
+> ninety lines. And the export is verified — the training script rejects it if
+> the NumPy runtime disagrees with Keras by more than one part in ten thousand.**
 
-*Back to the dashboard.*
+> **Finally, the honest limitations. It tracks one person at a time. It can't
+> resolve a fall directly toward the camera without depth information. And it
+> should be retrained on real annotated footage before any clinical use — the
+> retraining loop and the roadmap for that are both in my report.**
 
-> **To summarise: 98.4% accuracy, perfect precision and recall on falls, zero
-> false alarms on bending, and about 1.3 milliseconds per frame.**
->
-> **But the number I'd actually defend is the false-alarm rate — because that's
+> **But the number I'd actually defend is the false-alarm rate. Because that's
 > the one that decides whether a system like this is still switched on six
 > months after it's installed.**
->
-> **Known limitations: it tracks one person at a time, it can't resolve a fall
-> directly toward the camera without depth, and it should be retrained on real
-> footage before any clinical use. The retraining loop and roadmap are in the
-> report.**
->
-> **Thanks for watching.**
+
+> **Thank you for watching.**
+
+`[SCREEN: Stop recording — click the ■ in the menu bar.]`
 
 ---
 
-## Checklist — confirm each is visible on camera
+## Checklist — tick each off after you watch it back
 
-- [ ] Project overview explanation — Scene 1
-- [ ] Dataset explanation — Scene 2
-- [ ] Pose estimation outputs — Scene 3
-- [ ] Model prediction screenshots — Scenes 3, 4
-- [ ] Streamlit dashboard — throughout
-- [ ] Evaluation metrics — Scene 6
-- [ ] Confusion matrix — Scene 6
-- [ ] Alert system demonstration — Scenes 4, 5
-- [ ] Live Streamlit URL visible in the address bar — Scenes 1, 7
+- [ ] Project overview explained — Scene 1
+- [ ] Dataset explained, including the split — Scene 2
+- [ ] Pose estimation output visible on a real photo — Scene 3
+- [ ] Model predictions with confidence shown — Scenes 3, 4
+- [ ] Streamlit dashboard shown throughout — all scenes
+- [ ] Evaluation metrics shown — Scene 6
+- [ ] Confusion matrix shown — Scene 6
+- [ ] Alert system demonstrated — Scenes 4, 5
+- [ ] The live URL is legible in the address bar — Scenes 1 and 7
+- [ ] Audio is clear and there is no background noise
+- [ ] Total length is between 8 and 10 minutes
+
+## If something goes wrong on camera
+
+**A sample button does nothing.** Reload the page and click it again — the app
+sleeps after inactivity and the first click can wake it instead of running.
+
+**The video clip takes a long time.** That is normal; it runs pose estimation on
+every sampled frame. Stay quiet and let it finish rather than filling the
+silence.
+
+**You get a different number than the script says.** Read out whatever is on
+screen. The numbers in this script are what the app produced when it was last
+verified, but confidences shift by a fraction of a percent between runs. Never
+read a number that contradicts what the marker can see.
