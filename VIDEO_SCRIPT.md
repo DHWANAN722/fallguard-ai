@@ -24,7 +24,7 @@ matrix · alert system demonstration.
      https://github.com/DHWANAN722/fallguard-ai/blob/main/notebooks/FallGuard_Training.ipynb
      (GitHub renders the notebook with all the charts already visible; you do
      not need Colab.)
-2. **Wake the app up.** Click through all four tabs once, and click one sample,
+2. **Wake the app up.** Click through all five tabs once, and click one sample,
    so nothing is cold when you record. Then reload Tab 1 so it is back to a
    clean Image Analysis view.
 3. **Silence everything.** Do Not Disturb on. Close Slack, Mail, Messages.
@@ -64,9 +64,9 @@ is not.
 `[SCREEN: Slowly scroll down a little so all four tabs are clearly visible, then
 scroll back up. Hover over each tab name in turn as you say the next lines.]`
 
-> **The dashboard has four sections: Image Analysis for a single photo, Video
-> Monitoring for a clip, Live Simulation, and Model and Metrics for the training
-> evidence.**
+> **The dashboard has five sections: Image Analysis for a single photo, Video
+> Monitoring for a clip, Real-Time Monitoring for a live camera, Live Simulation,
+> and Model and Metrics for the training evidence.**
 
 ---
 
@@ -238,7 +238,29 @@ chart, then to the event log and the CSV download button.]`
 
 ---
 
-# SCENE 6 · Evaluation metrics and confusion matrix — 7:00 to 8:40
+# SCENE 5b · Real-time camera — 7:00 to 7:40
+
+`[SCREEN: Click the "REAL-TIME MONITORING" tab. Your browser will ask for camera
+permission the first time — click Allow. Stand back so your whole body is in
+frame before you press the shutter.]`
+
+> **The system also runs on a live camera. This tab opens the device camera and
+> runs the same pipeline on the frame I capture.**
+
+`[SCREEN: Press the shutter button. Wait for the result.]`
+
+> **Same output as before — the skeleton, the classification, the biomechanical
+> evidence and the alert level, this time on a frame taken a second ago.**
+
+> **And the same privacy property holds: the frame is reduced to thirty-three
+> landmarks in memory and discarded. Nothing is uploaded or stored.**
+
+*(If you would rather not appear on camera, skip this scene — the brief doesn't
+require it, and Scenes 3 to 5 already cover pose output, predictions and alerts.)*
+
+---
+
+# SCENE 6 · Evaluation metrics and confusion matrix — 7:40 to 9:10
 
 `[SCREEN: Click the "MODEL & METRICS" tab.]`
 
@@ -295,7 +317,7 @@ column.]`
 
 ---
 
-# SCENE 7 · Deployment, limitations, close — 8:40 to 9:40
+# SCENE 7 · Deployment, limitations, close — 9:10 to 10:00
 
 `[SCREEN: Scroll up so the URL bar is visible again.]`
 

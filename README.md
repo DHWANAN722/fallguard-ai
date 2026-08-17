@@ -98,6 +98,7 @@ python scripts/train.py --epochs 60
 |---|---|
 | **Image Analysis** | Upload a photo → neon pose overlay, predicted activity with confidence, class-probability bars, biomechanical evidence panel, alert banner. Includes a panel showing the exact 64×64×3 tensor the CNN receives. |
 | **Video Monitoring** | Upload a clip → per-frame analysis, annotated feed, fall-evidence timeline, activity distribution, emergency event log, downloadable incident CSV. |
+| **Real-Time Monitoring** | Opens the device camera and runs the full pipeline on the captured frame — pose overlay, class, confidence, biomechanical evidence, alert level. The frame is reduced to 33 landmarks in memory and never stored. |
 | **Live Simulation** | Five scripted scenarios — including a *bending-over false-alarm test* — for demonstrating the alert logic without footage. |
 | **Model & Metrics** | Model comparison, per-class metrics, confusion matrix, training curves, and a plain-English explanation of how a decision is made. |
 
@@ -258,6 +259,14 @@ BatchNorm momentum of 0.99 decays its initialisation by only `0.99^72 ≈ 0.49`
 per epoch, so the moving statistics used at inference stay dominated by their
 priors. `momentum=0.9` fixed it outright. A train/validation gap that appears in
 the first few epochs and is that extreme is a bug, not overfitting.
+
+**Why the camera tab captures rather than streams.** Continuous server-side
+video needs WebRTC, which needs Streamlit ≥1.45, which needs protobuf ≥5 —
+and MediaPipe 0.10 needs protobuf 4. Adding `streamlit-webrtc` upgrades numpy,
+protobuf and Streamlit together and breaks pose estimation outright (verified,
+not assumed). So the camera tab runs the real model over a dependency stack
+that actually resolves. In production this loop belongs on the camera or an
+edge device anyway; at ~1.5 ms per frame the classifier is not the bottleneck.
 
 **Robustness.** Under a 14× sweep of landmark jitter, overall accuracy falls
 from 95% to 78% while **fall recall stays at 1.000**. That is the failure mode

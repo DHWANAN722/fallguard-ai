@@ -8,12 +8,13 @@ Step 7: Model Deployment using Streamlit.
 Run locally:      streamlit run app.py
 Deployed:         Streamlit Community Cloud (see README.md)
 
-The dashboard is organised as four surfaces:
+The dashboard is organised as five surfaces:
 
-    IMAGE ANALYSIS     upload a photo → pose overlay, activity, alert, evidence
-    VIDEO MONITORING   upload a clip  → per-frame timeline, event log, analytics
-    LIVE SIMULATION    synthesise a scenario when no footage is to hand
-    MODEL & METRICS    the training evidence, in-app
+    IMAGE ANALYSIS        upload a photo → pose overlay, activity, alert, evidence
+    VIDEO MONITORING      upload a clip  → per-frame timeline, event log, analytics
+    REAL-TIME MONITORING  capture from the device camera and analyse it live
+    LIVE SIMULATION       synthesise a scenario when no footage is to hand
+    MODEL & METRICS       the training evidence, in-app
 
 Everything the brief asks the dashboard to display — totals, fall count, normal
 count, confidence, pose visualisation, emergency messaging, distribution charts
@@ -283,8 +284,9 @@ if not model_ok:
 
 detector = load_detector(cnn_t, bio_t, persist)
 
-tab_img, tab_vid, tab_sim, tab_model = st.tabs(
-    ["◈  IMAGE ANALYSIS", "◈  VIDEO MONITORING", "◈  LIVE SIMULATION", "◈  MODEL & METRICS"]
+tab_img, tab_vid, tab_live, tab_sim, tab_model = st.tabs(
+    ["◈  IMAGE ANALYSIS", "◈  VIDEO MONITORING", "◈  REAL-TIME MONITORING",
+     "◈  LIVE SIMULATION", "◈  MODEL & METRICS"]
 )
 
 
@@ -628,6 +630,92 @@ with tab_vid:
 # ==========================================================================
 # TAB 3 — simulation
 # ==========================================================================
+
+# ==========================================================================
+# TAB 3 — real-time monitoring from the device camera
+# ==========================================================================
+with tab_live:
+    st.markdown("#### Monitor a live camera")
+    st.caption(
+        "Opens your device camera and runs the full pipeline — BlazePose, the "
+        "hybrid CNN and the biomechanical rule — on the frame you capture. "
+        "Nothing is uploaded or stored: the frame is reduced to 33 landmarks in "
+        "memory and discarded when you take the next one."
+    )
+
+    if not ok_pose:
+        st.warning("Pose estimation unavailable, so the camera cannot be "
+                   "analysed. The Live Simulation tab still works.", icon="⚠️")
+    else:
+        shot = st.camera_input("Camera", key="live_cam",
+                               label_visibility="collapsed")
+
+        if shot is None:
+            st.info(
+                "Allow camera access when your browser asks, then press the "
+                "shutter button to analyse a frame. Stand back far enough that "
+                "your whole body is in view — head to feet — or the pose "
+                "estimator will reject the frame as unreliable.", icon="ℹ️")
+
+            st.markdown('<hr class="fg-rule">', unsafe_allow_html=True)
+            st.markdown(
+                "**Why a capture button rather than continuous video?** "
+                "Continuous server-side video on Streamlit Cloud needs WebRTC, "
+                "which requires a newer Streamlit, which requires protobuf 5+ "
+                "— and MediaPipe 0.10 requires protobuf 4. The two cannot "
+                "coexist, so the honest choice was a capture that runs the real "
+                "model over a genuinely reliable dependency stack. A production "
+                "deployment would run this loop on the camera itself or on an "
+                "edge box, which is where a real care-home system would put it "
+                "anyway: at ~1.5 ms per frame the classifier is nowhere near "
+                "the bottleneck.")
+        else:
+            frame = cv2.imdecode(np.frombuffer(shot.getvalue(), np.uint8),
+                                 cv2.IMREAD_COLOR)
+            if frame is None:
+                st.error("Could not decode the captured frame.", icon="🚫")
+            else:
+                if max(frame.shape[:2]) > 1280:
+                    sc = 1280 / max(frame.shape[:2])
+                    frame = cv2.resize(frame, None, fx=sc, fy=sc,
+                                       interpolation=cv2.INTER_AREA)
+
+                with st.spinner("Running BlazePose + CNN ..."):
+                    res = estimate_pose(frame)
+
+                if res is None:
+                    st.markdown(alert_banner(
+                        WATCH,
+                        "No reliable pose in this frame. Step back so your whole "
+                        "body is visible, improve the lighting, and capture again."
+                    ), unsafe_allow_html=True)
+                    st.image(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB),
+                             caption="captured frame", use_container_width=True)
+                else:
+                    P, V = res
+                    detector.reset()
+                    pred = detector.predict(P, V, timestamp=0.0, temporal=False)
+                    render_result(frame, pred, "live camera capture · "
+                                               "pose landmarks overlaid")
+
+                    st.markdown('<hr class="fg-rule">', unsafe_allow_html=True)
+                    st.markdown("### Monitoring analytics")
+                    s = detector.summary()
+                    cols = st.columns(5)
+                    for c, (lab, val, col) in zip(cols, [
+                        ("Total detections", f"{s['total']}", theme.CYAN),
+                        ("Falls detected", f"{s['fall_frames']}", theme.RED),
+                        ("Normal activity",
+                         f"{s['normal_activity_frames']}", theme.VIOLET),
+                        ("Confidence", f"{pred.confidence:.0%}", theme.AMBER),
+                        ("Alert level",
+                         LEVEL_STYLE[pred.level][0].split("—")[0].strip(),
+                         LEVEL_STYLE[pred.level][1]),
+                    ]):
+                        c.markdown(metric_tile(lab, val, col),
+                                   unsafe_allow_html=True)
+
+
 with tab_sim:
     st.markdown("#### Scenario simulator")
     st.caption("Generates skeletons from the same biomechanical model used to build "

@@ -253,7 +253,10 @@ def main() -> None:
                                default_timeout=300).run()
         check("app renders with no exception", not at.exception,
               at.exception[0].value if at.exception else "")
-        check("four tabs present", len(at.tabs) == 4, str(len(at.tabs)))
+        check("five tabs present", len(at.tabs) == 5, str(len(at.tabs)))
+        check("camera capture widget present",
+              len(at.get("camera_input")) == 1,
+              f'{len(at.get("camera_input"))} camera_input widget(s)')
         at.button[0].click().run()
         check("simulation runs with no exception", not at.exception,
               at.exception[0].value if at.exception else "")
