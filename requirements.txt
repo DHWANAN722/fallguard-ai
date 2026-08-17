@@ -29,3 +29,4 @@ opencv-python-headless==4.10.0.84
 pillow==10.4.0
 pandas==2.2.3
 plotly==5.24.1
+imageio-ffmpeg==0.5.1

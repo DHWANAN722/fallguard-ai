@@ -66,35 +66,79 @@ def iter_frames(path: str, target_fps: float = 6.0, max_frames: int = 300):
 BROWSER_SAFE = {"avc1", "H264"}
 
 
+def _encode_h264(frames: list[np.ndarray], fps: float, path: str) -> bool:
+    """Encode to real H.264 via the ffmpeg binary bundled with imageio-ffmpeg.
+
+    OpenCV's wheels ship no H.264 encoder on Streamlit Cloud — `avc1`/`H264`
+    fail and it falls back to `mp4v` (MPEG-4 Part 2), which OpenCV writes
+    happily and no browser will play. The result is an inert black player.
+    imageio-ffmpeg bundles a static ffmpeg with libx264, so this path produces
+    a file `st.video` can actually play, with `faststart` so it begins before
+    the whole file has buffered.
+    """
+    import subprocess
+
+    import imageio_ffmpeg
+
+    h, w = frames[0].shape[:2]
+    w -= w % 2                       # libx264 requires even dimensions
+    h -= h % 2
+
+    cmd = [
+        imageio_ffmpeg.get_ffmpeg_exe(), "-y", "-loglevel", "error",
+        "-f", "rawvideo", "-pix_fmt", "bgr24",
+        "-s", f"{w}x{h}", "-r", f"{fps}", "-i", "-",
+        "-an", "-c:v", "libx264", "-preset", "veryfast", "-crf", "23",
+        # yuv420p is what browsers decode; libx264 would otherwise pick a
+        # chroma format Safari refuses
+        "-pix_fmt", "yuv420p", "-movflags", "+faststart", path,
+    ]
+    try:
+        proc = subprocess.Popen(cmd, stdin=subprocess.PIPE,
+                                stdout=subprocess.DEVNULL,
+                                stderr=subprocess.PIPE)
+        for f in frames:
+            proc.stdin.write(np.ascontiguousarray(f[:h, :w]).tobytes())
+        proc.stdin.close()
+        proc.wait(timeout=120)
+        return proc.returncode == 0 and os.path.getsize(path) > 1024
+    except Exception:                                  # pragma: no cover
+        return False
+
+
 def write_annotated(
     frames: list[np.ndarray],
     fps: float = 6.0,
 ) -> tuple[str, str] | None:
     """Encode annotated frames to MP4.
 
-    Returns ``(path, fourcc)``, or ``None`` if no encoder worked at all. Check
-    ``fourcc in BROWSER_SAFE`` before handing the file to ``st.video``; OpenCV
-    wheels on Streamlit Cloud do not always ship an H.264 encoder, and silently
-    serving an unplayable file is worse than showing stills.
+    Returns ``(path, codec)``, or ``None`` if every encoder failed. Check
+    ``codec in BROWSER_SAFE`` before handing the file to ``st.video`` — serving
+    a file the browser cannot decode is worse than showing stills.
+
+    H.264 via bundled ffmpeg is tried first; the OpenCV writers remain as a
+    fallback so the app still works if imageio-ffmpeg is unavailable.
     """
     if not frames:
         return None
 
+    path = os.path.join(tempfile.gettempdir(), f"fallguard_{os.getpid()}_h264.mp4")
+    if _encode_h264(frames, fps, path):
+        return path, "avc1"
+
     h, w = frames[0].shape[:2]
-    # even dimensions are required by most H.264 encoders
     w -= w % 2
     h -= h % 2
-
     for fourcc in ("avc1", "H264", "mp4v"):
-        path = os.path.join(tempfile.gettempdir(),
-                            f"fallguard_{os.getpid()}_{fourcc}.mp4")
-        vw = cv2.VideoWriter(path, cv2.VideoWriter_fourcc(*fourcc), fps, (w, h))
+        p = os.path.join(tempfile.gettempdir(),
+                         f"fallguard_{os.getpid()}_{fourcc}.mp4")
+        vw = cv2.VideoWriter(p, cv2.VideoWriter_fourcc(*fourcc), fps, (w, h))
         if not vw.isOpened():
             vw.release()
             continue
         for f in frames:
             vw.write(f[:h, :w])
         vw.release()
-        if os.path.exists(path) and os.path.getsize(path) > 1024:
-            return path, fourcc
+        if os.path.exists(p) and os.path.getsize(p) > 1024:
+            return p, fourcc
     return None

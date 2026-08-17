@@ -87,14 +87,43 @@ def aspect_uncorrect(P: np.ndarray, width: int, height: int) -> np.ndarray:
     return P
 
 
-def estimate(frame_bgr: np.ndarray) -> tuple[np.ndarray, np.ndarray] | None:
+#: Landmarks whose loss makes every downstream measurement meaningless.
+#: Trunk angle, pelvis height and leg verticality are all defined from the
+#: shoulder and hip midpoints; without them there is nothing to reason about.
+_CORE = (11, 12, 23, 24)          # L/R shoulder, L/R hip
+
+MIN_CORE_VISIBILITY = 0.30
+MIN_VISIBLE_LANDMARKS = 12
+
+
+def estimate(
+    frame_bgr: np.ndarray,
+    strict: bool = True,
+) -> tuple[np.ndarray, np.ndarray] | None:
     """Run pose estimation on one BGR frame.
 
     Returns
     -------
     ``(landmarks (33,2) float32, visibility (33,) float32)`` with the landmarks
     already **aspect-corrected** (see ``aspect_correct``), or ``None`` when no
-    person is detected.
+    person is detected **or when the detection is too unreliable to use**.
+
+    On the quality gate
+    -------------------
+    BlazePose does not say "I don't know". On a motion-blurred frame it returns
+    a full 33-landmark skeleton with most visibilities near zero — geometrically
+    meaningless, but structurally indistinguishable from a good detection.
+
+    Left ungated this is not merely ugly, it is unsafe. On a real test clip the
+    frame at t=1.83 s had 9 of 33 landmarks above threshold and a mean
+    visibility of 0.17, and it raised a FALL ALERT: the CNN and the
+    biomechanical rule "agreed" on coordinates that were noise, and the
+    dashboard drew a fragment of a skeleton floating over a bed.
+
+    So a detection is rejected unless the four core torso landmarks are
+    individually visible and at least a third of the skeleton is usable. A
+    rejected frame is reported as no-detection, which the caller already
+    handles and surfaces honestly, rather than as a confident wrong answer.
     """
     import cv2
 
@@ -110,6 +139,13 @@ def estimate(frame_bgr: np.ndarray) -> tuple[np.ndarray, np.ndarray] | None:
     lm = res.pose_landmarks.landmark
     P = np.array([[p.x, p.y] for p in lm], dtype=np.float32)
     V = np.array([p.visibility for p in lm], dtype=np.float32)
+
+    if strict:
+        if float(V[list(_CORE)].min()) < MIN_CORE_VISIBILITY:
+            return None
+        if int((V >= 0.35).sum()) < MIN_VISIBLE_LANDMARKS:
+            return None
+
     return aspect_correct(P, w, h), V
 
 

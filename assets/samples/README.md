@@ -47,9 +47,9 @@ the app. Only use footage of people who have agreed to that.
 | `01_standing.jpg` | Standing 100% · ALL CLEAR |
 | `02_bending_over.jpg` | Normal Activity 100% · ALL CLEAR |
 | `03_fallen_on_floor.jpg` | Fall Detected 96.6% · FALL ALERT |
-| `04_fall_clip.mp4` | 3.2 s, 576x1024. At the default 6 fps: 16 frames analysed, 7 classified Fall Detected at 100% confidence, peak level FALL ALERT. |
+| `04_fall_clip.mp4` | 3.2 s, 576x1024. At the default 6 fps: 14 frames pass the pose-quality gate, 5 classified Fall Detected, peak level MONITORING (WATCH). |
 
-The clip reaches FALL ALERT rather than EMERGENCY, and that is the logic
+The clip peaks at MONITORING rather than FALL ALERT, and that is the logic
 working as designed rather than a failure. EMERGENCY additionally requires
 *sustained* corroboration — four consecutive frames where the network and the
 biomechanical rule both fire — or an impact-velocity signature. On this clip
