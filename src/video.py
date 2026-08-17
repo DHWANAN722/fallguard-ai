@@ -66,6 +66,56 @@ def iter_frames(path: str, target_fps: float = 6.0, max_frames: int = 300):
 BROWSER_SAFE = {"avc1", "H264"}
 
 
+def write_gif(
+    frames: list[np.ndarray],
+    fps: float = 6.0,
+    max_width: int = 420,
+) -> str | None:
+    """Encode annotated frames to a looping GIF.
+
+    A GIF is used for the *primary* on-page playback rather than the MP4
+    because a browser plays it automatically, forever, with no controls and no
+    click required — the annotated feed simply runs, which is what a monitoring
+    wall would look like. ``st.video`` by contrast renders a paused player with
+    a play button, so the reviewer sees a still frame unless they interact.
+
+    Frames are downscaled and colour-quantised because GIF is a 256-colour
+    format with no interframe compression; at full 540x960 a 14-frame clip is
+    several megabytes, and this repository is served to every visitor.
+    """
+    if not frames:
+        return None
+
+    try:
+        from PIL import Image
+    except ImportError:                                # pragma: no cover
+        return None
+
+    h, w = frames[0].shape[:2]
+    if w > max_width:
+        scale = max_width / w
+        size = (max_width, int(round(h * scale)))
+    else:
+        size = (w, h)
+
+    pil = []
+    for f in frames:
+        img = Image.fromarray(cv2.cvtColor(f, cv2.COLOR_BGR2RGB))
+        if size != (w, h):
+            img = img.resize(size, Image.LANCZOS)
+        # ADAPTIVE keeps the neon skeleton colours distinct against the
+        # photographic background; the default web palette muddies them.
+        pil.append(img.convert("P", palette=Image.ADAPTIVE, colors=128))
+
+    path = os.path.join(tempfile.gettempdir(), f"fallguard_{os.getpid()}.gif")
+    pil[0].save(
+        path, save_all=True, append_images=pil[1:],
+        duration=int(1000 / max(fps, 0.1)), loop=0, optimize=True,
+        disposal=2,
+    )
+    return path if os.path.getsize(path) > 512 else None
+
+
 def _encode_h264(frames: list[np.ndarray], fps: float, path: str) -> bool:
     """Encode to real H.264 via the ffmpeg binary bundled with imageio-ffmpeg.
 

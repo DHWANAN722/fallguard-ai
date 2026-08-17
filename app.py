@@ -573,30 +573,34 @@ with tab_vid:
                                f"detectable person and were skipped.")
 
                 clip = vid.write_annotated(annotated, fps=float(target_fps))
-                playable = bool(clip) and clip[1] in vid.BROWSER_SAFE
+                gif = vid.write_gif(annotated, fps=float(target_fps))
 
                 c1, c2 = st.columns([1.3, 1], gap="large")
                 with c1:
-                    if playable:
-                        st.video(clip[0])
-                        st.caption("Annotated monitoring feed")
+                    # The GIF is the primary view: it loops on its own, with no
+                    # play button to press, so the annotated feed simply runs
+                    # the way a monitoring wall would. The MP4 is offered
+                    # underneath for full resolution and scrubbing.
+                    if gif:
+                        st.image(gif, use_container_width=True)
+                        st.caption("Annotated monitoring feed · looping")
                     elif annotated:
-                        # no browser-decodable encoder on this host — show the
-                        # frames directly rather than an inert video player
                         hi = max(range(len(annotated)),
                                  key=lambda i: detector.history[i].probabilities[FALL]
                                  if i < len(detector.history) else 0)
                         st.image(cv2.cvtColor(annotated[hi], cv2.COLOR_BGR2RGB),
                                  caption="Highest-risk annotated frame",
                                  use_container_width=True)
-                        if clip:
+
+                    if clip:
+                        with st.expander("Full-resolution clip (scrubbable)"):
+                            if clip[1] in vid.BROWSER_SAFE:
+                                st.video(clip[0])
                             st.download_button(
                                 "⬇  Download annotated clip (MP4)",
                                 open(clip[0], "rb").read(),
                                 file_name="fallguard_annotated.mp4",
                                 mime="video/mp4", key="vid_clip_dl")
-                            st.caption("This host has no H.264 encoder, so the clip "
-                                       "is MPEG-4 Part 2 — download it to view.")
                 with c2:
                     st.markdown(card(
                         "Highest-risk frame",

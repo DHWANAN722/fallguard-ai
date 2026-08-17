@@ -225,6 +225,16 @@ def main() -> None:
         check("frame iteration works",
               len(list(vid.iter_frames(r[0], 6, 50))) > 0)
 
+    g = vid.write_gif(frames, fps=6)
+    check("looping GIF encodes", g is not None,
+          f"{os.path.getsize(g)/1024:.0f} KB" if g else "")
+    if g:
+        from PIL import Image
+        im = Image.open(g)
+        # loop == 0 means "repeat forever"; anything else stops after N plays
+        check("GIF loops forever", im.info.get("loop") == 0,
+              f"loop={im.info.get('loop')}, {im.n_frames} frames")
+
     # ---------------------------------------------------------------- pose
     print("\n[8] pose estimation")
     from src import pose
