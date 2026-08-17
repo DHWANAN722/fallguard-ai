@@ -27,7 +27,7 @@ CLASS_COLOURS = {
     "Walking": CYAN,
     "Sitting": AMBER,
     "Standing": LIME,
-    "Normal Activity": VIOLET,
+    "Bending": VIOLET,
 }
 
 

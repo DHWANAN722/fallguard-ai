@@ -313,9 +313,28 @@ function biomechScore(P, V) {
   const trunk = clip((c.torso - 45) / 35);
   const aspect = clip((1.8 - c.aspect) / 1.0);
   const shape = 0.55 * trunk + 0.45 * aspect;
-  const low = clip((0.38 - c.pelvis) / 0.22);
-  const legs = clip((0.75 - c.legVert) / 0.45);
-  return clip(shape * (0.25 + 0.75 * Math.max(low, legs)));
+  let low = clip((0.38 - c.pelvis) / 0.22);
+  let legs = clip((0.75 - c.legVert) / 0.45);
+
+  /* Absence of evidence is not evidence of descent. MediaPipe extrapolates
+   * joints it cannot see, and at a desk the hips land below the bottom edge,
+   * which reads as the strongest possible descent signal — this is what
+   * scored a seated man as a fall. Both descent terms are withdrawn when
+   * unmeasurable, and the gate floor is raised when the measurement is
+   * missing rather than negative. Note the legs are judged on VISIBILITY
+   * only: a knee at the frame edge that the estimator genuinely saw is
+   * evidence FOR a fall, whereas one it never observed is no evidence at all.
+   * Mirrors the identical guard in src/features.py. */
+  const hipVis = Math.min(V[L_HIP], V[R_HIP]);
+  const pelvisUnmeasurable = (1 - c.pelvis) > 0.98 || hipVis < 0.45;
+  if (pelvisUnmeasurable) low = 0;
+
+  const legVis = Math.min(V[L_KNEE], V[R_KNEE], V[L_ANK], V[R_ANK]);
+  const legsUnmeasurable = legVis < 0.40;
+  if (legsUnmeasurable) legs = 0;
+
+  const floor = (pelvisUnmeasurable && legsUnmeasurable) ? 0.50 : 0.25;
+  return clip(shape * (floor + (1 - floor) * Math.max(low, legs)));
 }
 
 /* -------------------------------------------- rasterise skeleton to tensor */

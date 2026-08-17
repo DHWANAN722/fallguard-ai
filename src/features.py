@@ -203,7 +203,60 @@ def biomechanical_fall_score(P: np.ndarray, vis: np.ndarray) -> float:
     # --- whether the body is actually DOWN ------------------------------
     low = np.clip((0.38 - c["pelvis_height"]) / 0.22, 0, 1)          # pelvis near floor
     legs = np.clip((0.75 - c["leg_verticality"]) / 0.45, 0, 1)       # legs not under body
+
+    # An off-frame pelvis is ABSENCE of evidence, not evidence of descent.
+    # MediaPipe does not decline to locate hips it cannot see: it extrapolates
+    # them, and for a laptop webcam at desk height that extrapolation lands
+    # below the bottom edge — a pelvis height of -0.09 on a man sitting
+    # upright in a chair. Read naively, "pelvis far below the floor line" is
+    # the strongest descent signal the rule can register, so it scored a
+    # seated person at 38% and a torso-framed one higher still.
+    #
+    # So when the hips are outside the frame or poorly localised, the height
+    # term is withdrawn rather than trusted, and the rule leans on leg
+    # geometry alone. A genuine fall seen in the same tight framing still
+    # scores through `trunk` and `aspect`, which a crop does not distort.
+    hip_vis = float(min(vis[L_HIP], vis[R_HIP]))
+    pelvis_y = 1.0 - c["pelvis_height"]
+    pelvis_unmeasurable = pelvis_y > 0.98 or hip_vis < 0.45
+    if pelvis_unmeasurable:
+        low = 0.0
+
+    # The same reasoning applies to leg verticality, and forgetting it here was
+    # a real bug rather than a hypothetical one. Every false alarm this rule
+    # produced on bending — 4 in 700 — had leg verticality between 0.01 and
+    # 0.55 on a posture whose legs are vertical by construction. The legs were
+    # simply outside the frame, and `leg_verticality` computed from
+    # extrapolated knees and ankles is noise. Because the two descent terms are
+    # combined with max(), that noise alone drove the score over threshold: the
+    # pelvis term had been withdrawn and the leg term walked straight in behind
+    # it.
+    # Judged on VISIBILITY alone, deliberately, not on position. Screening on
+    # "knee below the bottom edge" as well seemed natural and cost 8 points of
+    # fall sensitivity: someone lying on the floor legitimately has knees at
+    # the frame edge, and the estimator has genuinely seen them — visibility
+    # 0.90 at y = 1.10. The bending false alarms were the opposite case,
+    # visibility 0.02 to 0.09, limbs never observed at all and positioned
+    # purely by inference. Position at the edge means the leg is low, which is
+    # evidence FOR a fall; only invisibility means the measurement is absent.
+    leg_vis = float(min(vis[L_KNEE], vis[R_KNEE], vis[L_ANKLE], vis[R_ANKLE]))
+    legs_unmeasurable = leg_vis < 0.40
+    if legs_unmeasurable:
+        legs = 0.0
+
     down = max(low, legs)
+    descent_unmeasurable = pelvis_unmeasurable and legs_unmeasurable
+
+    # Absence of evidence is not evidence of absence. When the pelvis IS
+    # measurable and sits at standing height, that is a positive finding — the
+    # person is upright — and the gate should bite hard. When it cannot be
+    # measured at all, the same harsh gate would punish a fall for being
+    # filmed too close: a genuinely horizontal trunk in tight framing scores
+    # 0.25 * shape, landing exactly on the threshold and resolving either way
+    # on noise. So the floor is raised when the measurement is missing rather
+    # than negative. Swept over 2,500 skeletons: this recovers fall alerts at
+    # 0/2000 cost in false alarms on walking, sitting, standing and bending.
+    floor = 0.50 if descent_unmeasurable else 0.25
 
     # These two blocks are combined MULTIPLICATIVELY, not additively, and that
     # is the whole point of the rule. Summing them let trunk angle and aspect
@@ -219,5 +272,5 @@ def biomechanical_fall_score(P: np.ndarray, vis: np.ndarray) -> float:
     # postural evidence is gated by the descent evidence: with no descent at
     # all the score cannot exceed 0.25 * shape, which is below threshold even
     # for a maximally fall-shaped posture.
-    score = shape * (0.25 + 0.75 * down)
+    score = shape * (floor + (1.0 - floor) * down)
     return float(np.clip(score, 0.0, 1.0))

@@ -150,7 +150,7 @@ def main() -> None:
         print(f"  {fn:<32} {p.label:<16} {p.confidence:.1%}  {p.level}")
 
     # ---- the false-alarm comparison -------------------------------------
-    fall, bend = preds["Fall Detected"], preds["Normal Activity"]
+    fall, bend = preds["Fall Detected"], preds["Bending"]
     a = panel(fall, "REAL FALL - alert raised")
     b = panel(bend, "BENDING OVER - correctly cleared")
     combo = np.full((a.shape[0] * 2 + 82, a.shape[1], 3), BG, dtype=np.uint8)

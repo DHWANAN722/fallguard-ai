@@ -212,7 +212,7 @@ class FallDetector:
         if not self.history:
             return {
                 "total": 0, "counts": {c: 0 for c in self.classes},
-                "fall_frames": 0, "normal_activity_frames": 0,
+                "fall_frames": 0, "bending_frames": 0,
                 "non_fall_frames": 0, "mean_confidence": 0.0,
                 "peak_level": NORMAL, "alert_frames": 0,
             }
@@ -230,11 +230,11 @@ class FallDetector:
             "counts": counts,
             "fall_frames": falls,
             # Two genuinely different quantities that are easy to conflate:
-            # `normal_activity_frames` is the *class* (bending / reaching);
+            # `bending_frames` is the *class* (bending / reaching / stooping);
             # `non_fall_frames` is everything that is not a fall. Reporting the
             # latter under a "Normal activity" label would mean a clip of
             # someone simply walking displays as 100% "Normal activity".
-            "normal_activity_frames": counts.get("Normal Activity", 0),
+            "bending_frames": counts.get("Bending", 0),
             "non_fall_frames": len(self.history) - falls,
             "mean_confidence": float(np.mean([p.confidence for p in self.history])),
             "peak_level": peak,

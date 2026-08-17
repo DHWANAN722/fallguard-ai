@@ -10,7 +10,7 @@ CRS Artificial Intelligence · Y2C1 Machine Learning and Deep Learning
 FallGuard AI detects elderly falls from images and video by reducing each frame
 to 33 body landmarks with MediaPipe BlazePose and classifying the resulting
 skeleton with a hybrid convolutional network. On a held-out test split of 3 000
-samples it reaches **98.37 % accuracy** with **1.000 precision and 1.000 recall
+samples it reaches **99.03 % accuracy** with **1.000 precision and 0.997 recall
 on the fall class**, and raises **zero false alarms** on bending — the posture
 that defeats most deployed fall detectors. The system is live as a Streamlit
 dashboard offering image analysis, video monitoring, scenario simulation and
@@ -45,9 +45,9 @@ trained on identical splits:
 
 | Model | Input | Accuracy | Macro F1 | Fall recall |
 |---|---|---|---|---|
-| **Hybrid CNN** | skeleton tensor **+** geometric features | **0.9837** | **0.9837** | 1.000 |
-| Random Forest | 126 geometric features | 0.9827 | 0.9827 | 1.000 |
-| SVM (RBF) | 126 geometric features | 0.9533 | 0.9535 | 1.000 |
+| **Hybrid CNN** | skeleton tensor **+** geometric features | **0.9903** | **0.9903** | 0.997 |
+| Random Forest | 126 geometric features | 0.9773 | 0.9773 | 0.992 |
+| SVM (RBF) | 126 geometric features | 0.9480 | 0.9479 | 0.980 |
 
 The deployed model is a **two-branch hybrid**: a convolutional branch over a
 64×64×3 rendered skeleton tensor, fused with a dense branch over 126 explicit
@@ -132,7 +132,7 @@ downstream retrains unchanged.
 | Walking | Mid-gait with observable stride. |
 | Sitting | Pelvis at seat height, thighs ~horizontal, shins vertical. |
 | Standing | Upright, legs beneath the body. |
-| Normal Activity | **Bending / reaching / stooping** — deep trunk flexion over extended, vertical legs, pelvis still at standing height. |
+| Bending | **Bending / reaching / stooping** — deep trunk flexion over extended, vertical legs, pelvis still at standing height. |
 
 The fifth class is the crux. It shares a near-horizontal trunk with a fall while
 being entirely benign, so a detector thresholding on trunk angle alone fires on
@@ -232,52 +232,59 @@ the test score is not itself the product of repeated model selection.
 
 | Metric | Validation (n = 3 000) | Test (n = 3 000) |
 |---|---|---|
-| Accuracy | 0.9890 | 0.9837 |
-| Precision (macro) | 0.9890 | 0.9838 |
-| Recall (macro) | 0.9890 | 0.9837 |
-| F1 (macro) | 0.9890 | 0.9837 |
-| Fall precision | 0.9967 | 1.0000 |
-| Fall recall | 1.0000 | 1.0000 |
+| Accuracy | 0.9903 | 0.9903 |
+| Precision (macro) | 0.9903 | 0.9904 |
+| Recall (macro) | 0.9903 | 0.9903 |
+| F1 (macro) | 0.9903 | 0.9903 |
+| Fall precision | 1.0000 | 1.0000 |
+| Fall recall | 0.9950 | 0.9967 |
 
 Weights are chosen by **validation** accuracy and the test split is scored once,
-at the end. The 0.5-point validation-to-test drop is the expected cost of having
-used validation for model selection — reporting the higher number as the
-headline would be selection bias.
+at the end. The two agree to within 0.05 points, which is the evidence that the
+test score is not itself a product of repeated model selection.
 
-Full per-class reports for **both** splits are in
-`reports/classification_report.txt`; both confusion matrices are in
-`reports/metrics.json`.
+Fall recall is **1.0000 when the subject is fully within the frame** and 0.9200
+when the hips are extrapolated off-screen (n = 25). The blended 0.9967 is
+reported as the headline, but the split is what matters and is analysed in
+§6.5. Full per-class reports for **both** splits are in
+`reports/classification_report.txt`.
 
-### 6.2 Per-class performance
+### 6.2 Per-class performance (test split)
 
 | Class | Precision | Recall | F1 | Support |
 |---|---|---|---|---|
-| **Fall Detected** | **1.0000** | **1.0000** | **1.0000** | 600 |
-| Walking | 0.9605 | 0.9733 | 0.9669 | 600 |
-| Sitting | 1.0000 | 1.0000 | 1.0000 | 600 |
-| Standing | 0.9604 | 0.9700 | 0.9652 | 600 |
-| Normal Activity | 0.9983 | 0.9750 | 0.9865 | 600 |
+| **Fall Detected** | **1.0000** | **0.9967** | **0.9983** | 600 |
+| Walking | 0.9769 | 0.9867 | 0.9818 | 600 |
+| Sitting | 1.0000 | 0.9967 | 0.9983 | 600 |
+| Standing | 0.9866 | 0.9800 | 0.9833 | 600 |
+| Bending | 0.9884 | 0.9917 | 0.9900 | 600 |
 
 ### 6.3 Confusion matrix
 
-| actual ↓ / predicted → | Fall | Walking | Sitting | Standing | Normal |
+| actual ↓ / predicted → | Fall | Walking | Sitting | Standing | Bending |
 |---|---|---|---|---|---|
-| **Fall Detected** | **600** | 0 | 0 | 0 | 0 |
-| **Walking** | 0 | **584** | 0 | 16 | 0 |
-| **Sitting** | 0 | 0 | **600** | 0 | 0 |
-| **Standing** | 0 | 17 | 0 | **582** | 1 |
-| **Normal Activity** | 0 | 7 | 0 | 8 | **585** |
+| **Fall Detected** | **598** | 0 | 0 | 0 | 2 |
+| **Walking** | 0 | **592** | 0 | 8 | 0 |
+| **Sitting** | 0 | 1 | **598** | 0 | 1 |
+| **Standing** | 0 | 8 | 0 | **588** | 4 |
+| **Bending** | 0 | 5 | 0 | 0 | **595** |
 
 Reading it:
 
-* **The fall row and the fall column are both clean.** No fall was missed, and
-  nothing else was ever called a fall. In a safety system these two facts matter
-  far more than overall accuracy, because their costs are wildly asymmetric: a
-  missed fall can be fatal, while a false alarm erodes the trust that keeps the
-  system switched on.
-* **Normal Activity is never confused with Fall** — the bending false-alarm case
-  is fully solved.
-* The residual error is Walking↔Standing (33 of 49 errors), which is
+* **The fall column is perfectly clean.** Not one of the 2 400 non-fall samples
+  was ever called a fall — precision 1.0000. In a safety system this is the
+  property that decides whether the monitor is still switched on in a month,
+  because a device that cries wolf gets muted and a muted device detects
+  nothing.
+* **Bending is never called a Fall** — zero in that direction. The bending
+  false-alarm case, the single largest source of false positives in deployed
+  systems, is solved.
+* **Two falls were missed** out of 600, both called *Bending*, and both are
+  skeletons cropped at the waist by the camera-framing augmentation — the model
+  is choosing between a horizontal trunk on the floor and a horizontal trunk
+  bent over, without being allowed to know how low the pelvis is (§6.5b). On
+  fully-framed subjects recall is **1.0000**.
+* The residual non-fall error is Walking↔Standing (16 of 29 errors), which is
   irreducibly ambiguous from a single frame and is resolved temporally in the
   video path.
 
@@ -290,7 +297,7 @@ the resulting alert level:
 
 | File | Contents |
 |---|---|
-| `01_fall_detected.png` … `05_normal_activity.png` | one panel per activity class |
+| `01_fall_detected.png` … `05_bending.png` | one panel per activity class |
 | `06_false_alarm_test.png` | a real fall beside a deep bend — the decisive comparison |
 | `07_grid_all_classes.png` | contact sheet across all five classes |
 
@@ -308,20 +315,87 @@ what is swept here.
 
 | Landmark jitter σ | Overall accuracy | Fall recall |
 |---|---|---|
-| 0.004 | 0.9485 | **1.0000** |
-| 0.010 | 0.9438 | **1.0000** |
-| 0.020 | 0.9285 | **1.0000** |
-| 0.035 | 0.8862 | **1.0000** |
-| 0.055 | 0.7715 | **1.0000** |
+| 0.004 | 0.9875 | **0.9958** |
+| 0.010 | 0.9842 | **0.9958** |
+| 0.020 | 0.9825 | **0.9958** |
+| 0.035 | 0.9508 | **0.9917** |
+| 0.055 | 0.8642 | **0.9917** |
 
-*(These runs add extra occlusion on top of the baseline augmentation, which is
-why overall accuracy starts below the 98.37 % headline.)*
+**Fall recall falls by 0.4 of a point across a 14× sweep** while overall
+accuracy falls by 12. That is the correct failure mode: as conditions degrade
+the system loses the ability to distinguish walking from standing — which
+nobody is paged about — long before it loses the ability to detect that someone
+is on the floor.
 
-**Fall recall holds at 1.000 across a 14× sweep** while overall accuracy falls
-from 95 % to 77 %. That is the correct failure mode: as conditions degrade the
-system loses the ability to distinguish walking from standing — which nobody is
-paged about — long before it loses the ability to detect that someone is on the
-floor.
+### 6.5b Partial framing: the failure that reached production
+
+The most instructive result in this project came from running the deployed app
+on a laptop at a desk. It reported **Fall Detected at 99.3 % confidence on a man
+sitting upright and perfectly still.**
+
+The evidence panel showed the two detectors in flat contradiction — network
+99 %, biomechanical rule 0 % — and one number explained it: **pelvis height
+−0.09**. MediaPipe does not decline to locate a hip it cannot see; it
+extrapolates one and reports a position outside the frame. A camera at desk
+height sees a torso and places the hips below the bottom edge, so the strongest
+fall cue the model has — how low the pelvis sits in the room — reads as *lower
+than the floor*. Every component had been built and validated on skeletons
+standing wholly inside the frame, so nothing had encountered this and nothing
+rejected it. Reproduced synthetically: seated desk framing gave Fall Detected
+100 %, standing gave Walking 98 %.
+
+Two independent defects, and therefore two fixes:
+
+1. **The corpus never contained the case.** Training now includes
+   camera-framing augmentation — a zoom about the chest that pushes the hips
+   off-screen, with off-frame landmarks losing visibility along a decay curve
+   rather than being deleted, because MediaPipe reports them with *reduced*
+   confidence rather than not at all. That distinction matters: it is precisely
+   why such a frame passes the quality gate and reaches the classifier instead
+   of being rejected. ~15 % of the corpus is now partially framed.
+2. **The rule treated missing evidence as evidence.**
+   `biomechanical_fall_score` now withdraws the pelvis-height term when the hips
+   are off-frame or poorly localised. And because absence of evidence is not
+   evidence of absence, the multiplicative gate applies a *higher* floor (0.50)
+   when the measurement is missing than when it is present and negative (0.25) —
+   otherwise a genuine fall filmed too close scores exactly on the threshold and
+   resolves on noise. Swept over 2 500 skeletons: worth ~1.5 points of fall
+   sensitivity at **zero** cost in false alarms.
+
+There is a third instance of the same mistake, and finding it required
+measurement rather than reasoning. Leg verticality was still trusted when the
+legs were off-frame: every remaining false alarm on bending had a leg
+verticality between 0.01 and 0.55 on a posture whose legs are vertical *by
+construction* — noise from limbs that were never observed, walking in behind the
+withdrawn pelvis term because the two are combined with `max()`.
+
+That term is now judged on **visibility, not position**, and the distinction was
+worth eight points of fall sensitivity. Screening out knees below the frame edge
+as well seemed obviously correct and was measurably wrong: a person lying on the
+floor legitimately has knees at the edge and the estimator has *seen* them —
+visibility 0.90 at y = 1.10 — whereas the bending failures sat at visibility
+0.02 to 0.09. Position at the edge means the leg is low, which is evidence
+**for** a fall; only invisibility means the measurement is absent.
+
+| | Before | After |
+|---|---|---|
+| Seated, desk framing | **Fall Detected 100 %** | **Sitting 100 %** |
+| Standing, desk framing | Walking 98 % | Standing, no alert |
+| False fall alerts, 900 non-fall poses × 3 framings | — | **0** |
+| Fall recall, fully framed | 1.000 | **1.000** |
+| Fall ALERT rate, fully framed (n = 2 907) | — | 82.6 % |
+| Fall ALERT rate, hips off-frame (n = 93) | — | 14.0 % |
+
+The residual weakness is stated rather than averaged away. A fall filmed so
+closely that the hips leave the frame still *classifies* at 0.92 recall but
+reaches the ALERT state only 14 % of the time, because an extrapolated hip
+corrupts the trunk-angle measurement as well as pelvis height — so the
+corroborating rule has nothing trustworthy left to corroborate with. This is
+intrinsic to the framing rather than a tuning failure, and no threshold setting
+recovers it: the evidence is genuinely absent, and the system is built to
+withhold a cue rather than invent one. It affects roughly 3 % of falls, and a
+ceiling or wall-mounted camera — what a real deployment uses — avoids the regime
+entirely.
 
 ### 6.6 Threshold calibration
 
@@ -329,11 +403,11 @@ The corroboration threshold was measured, not guessed:
 
 | Class | median rule score | 95th percentile |
 |---|---|---|
-| Fall Detected | 0.74 | 0.97 |
-| Sitting | 0.11 | 0.28 |
-| Normal Activity | 0.11 | 0.41 |
-| Walking | 0.00 | 0.06 |
-| Standing | 0.00 | 0.00 |
+| Fall Detected | 0.53 | 1.00 |
+| Sitting | 0.08 | 0.23 |
+| Bending | 0.09 | 0.25 |
+| Walking | 0.00 | 0.18 |
+| Standing | 0.00 | 0.14 |
 
 | Threshold | Falls corroborated | False vote on non-falls |
 |---|---|---|
@@ -353,13 +427,16 @@ Single-frame alert levels, 300 samples per class:
 
 | Class | NORMAL | WATCH | ALERT |
 |---|---|---|---|
-| Fall Detected | 0 | 16 | **284** |
-| Walking | 300 | 0 | 0 |
-| Sitting | 299 | 1 | 0 |
+| Fall Detected | 1 | 57 | **242** |
+| Walking | 297 | 3 | 0 |
+| Sitting | 291 | 9 | 0 |
 | Standing | 300 | 0 | 0 |
-| Normal Activity | 291 | 9 | 0 |
+| Bending | 279 | 21 | 0 |
 
-**Zero false alarms across every non-fall class**, including bending. On a
+**Zero false alarms across every non-fall class**, including bending. Note that
+bending reaches WATCH 21 times in 300 — the rule notices the horizontal trunk,
+as it should — but never once corroborates into an ALERT, which is precisely
+what the two-tier design is for. WATCH is logged; nobody is paged. On a
 scripted video sequence (standing → walking → collapse) the engine escalates
 `NORMAL` → `ALERT` → `EMERGENCY` once persistence is satisfied.
 
@@ -456,10 +533,10 @@ outcomes rather than pixels, over 3,000 held-out test skeletons:
 
 | | OpenCV render | JavaScript render |
 |---|---|---|
-| Test accuracy | 98.37% | 98.23% |
-| Fall recall | 1.000 | **1.000** |
+| Test accuracy | 99.03% | 98.41% |
+| Fall recall | 0.997 | **0.997** |
 | Fall precision | 1.000 | **1.000** |
-| Label agreement | — | **99.50%** |
+| Label agreement | — | **99.74%** |
 
 Every disagreement was Standing↔Walking, the boundary the model is already
 least certain about, and **no disagreement involved the fall class at all** —
@@ -510,8 +587,9 @@ colour, and the pulsing emergency animation respects
 
 ## Conclusion
 
-FallGuard AI achieves **98.37 % test accuracy with perfect precision and recall
-on the fall class and zero false alarms on bending**. The result rests less on
+FallGuard AI achieves **99.03 % test accuracy with perfect fall precision,
+1.000 fall recall on fully-framed subjects, and zero false fall alerts across
+900 non-fall poses at three camera framings**. The result rests less on
 the network than on three design choices: treating bending as a first-class
 category rather than an afterthought, requiring two independent detectors to
 agree before raising an alarm, and treating a fall as a temporal event rather

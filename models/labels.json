@@ -4,7 +4,7 @@
     "Walking",
     "Sitting",
     "Standing",
-    "Normal Activity"
+    "Bending"
   ],
   "fall_index": 0,
   "input_shape": [
@@ -13,10 +13,10 @@
     3
   ],
   "n_parameters": 197925,
-  "epochs_run": 22,
-  "best_val_accuracy": 0.9890000224113464,
+  "epochs_run": 31,
+  "best_val_accuracy": 0.9903333187103271,
   "numpy_keras_max_delta": 1.0728836059570312e-06,
-  "train_seconds": 218.2,
+  "train_seconds": 337.9,
   "dataset": {
     "total": 20000,
     "split": {

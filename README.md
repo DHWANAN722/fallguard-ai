@@ -16,13 +16,14 @@ Streamlit dashboard.
 
 | Metric | Value |
 |---|---|
-| Validation accuracy | **98.90 %** |
-| Test accuracy | **98.37 %** |
-| Macro F1 | **0.9837** |
-| **Fall recall** | **1.000** — no fall missed |
-| **Fall precision** | **1.000** — nothing else mistaken for a fall |
-| False alarms on bending | **0** |
-| Inference latency | ~1.3 ms/frame (CPU, excluding pose estimation) |
+| Validation accuracy | **99.03 %** |
+| Test accuracy | **99.03 %** |
+| Macro F1 | **0.9903** |
+| **Fall recall** (subject fully in frame) | **1.000** |
+| **Fall recall** (overall) | **0.997** |
+| **Fall precision** | **1.000** — nothing else is ever mistaken for a fall |
+| False fall alerts (900 non-fall poses × 3 framings) | **0** |
+| Inference latency | ~1.2 ms/frame (CPU, excluding pose estimation) |
 | Model size | 197 925 parameters · 0.8 MB |
 
 Evaluated on a held-out test split of 3 000 samples (600 per class) that no
@@ -31,9 +32,16 @@ model saw during training or model selection. Weights are selected on the
 
 | Model | Accuracy | Macro F1 | Fall recall |
 |---|---|---|---|
-| **Hybrid CNN** (deployed) | **0.9837** | **0.9837** | 1.000 |
-| Random Forest | 0.9827 | 0.9827 | 1.000 |
-| SVM (RBF) | 0.9533 | 0.9535 | 1.000 |
+| **Hybrid CNN** (deployed) | **0.9903** | **0.9903** | 0.997 |
+| Random Forest | 0.9773 | 0.9773 | 0.992 |
+| SVM (RBF) | 0.9480 | 0.9479 | 0.980 |
+
+Recall is quoted twice on purpose. The corpus contains skeletons framed as a
+laptop webcam frames them — subject cropped at the waist, hips extrapolated
+off-screen — and a fall filmed that tightly is materially harder to identify
+(recall 0.92 on that subgroup, n=25). Reporting one blended figure would let
+that disappear behind the easy majority. See
+[known limitations](#known-limitations).
 
 ---
 
@@ -46,12 +54,18 @@ bends down gets muted within a week, and a muted monitor detects nothing.
 
 Three mechanisms address that directly:
 
-**1 · `Normal Activity` is bending, deliberately.** The fifth class is modelled
-as bending/reaching/stooping — deep trunk flexion over *extended, vertical legs*
-with the pelvis still at standing height. It is the posture that most resembles
-a fall while being completely benign, and it is the single largest source of
-false positives in deployed systems. Training against it explicitly forces the
-model to learn pelvis height and leg configuration, not just trunk angle.
+**1 · `Bending` is a class in its own right, deliberately.** The fifth class is
+modelled as bending/reaching/stooping — deep trunk flexion over *extended,
+vertical legs* with the pelvis still at standing height. It is the posture that
+most resembles a fall while being completely benign, and it is the single
+largest source of false positives in deployed systems. Training against it
+explicitly forces the model to learn pelvis height and leg configuration, not
+just trunk angle.
+
+> **Naming.** The assignment brief calls this category *Normal Activity*. It is
+> displayed throughout as **Bending**, because that is exactly what it models
+> and because a label should match what a viewer can see the subject doing.
+> Same class, same index, clearer name.
 
 **2 · Two-tier corroboration.** Alongside the network, a fully transparent
 geometric rule scores each skeleton on trunk inclination, bounding-box aspect
@@ -134,7 +148,7 @@ frame ──> MediaPipe BlazePose ──> 33 landmarks + visibility
                         NORMAL / WATCH / ALERT / EMERGENCY
 ```
 
-**Classes:** `Fall Detected` · `Walking` · `Sitting` · `Standing` · `Normal Activity`
+**Classes:** `Fall Detected` · `Walking` · `Sitting` · `Standing` · `Bending` (the brief's "Normal Activity")
 
 ---
 
@@ -294,7 +308,7 @@ checked rather than trusted, in two parts:
   *overwrites*. So the raster is computed arithmetically by supersampled area
   coverage instead — deterministic, and identical in every browser. Measured
   against OpenCV over 3,000 held-out skeletons: mean pixel difference 0.0029,
-  label agreement **99.50%**, accuracy 98.23% against 98.37%. Every
+  label agreement **99.74%**, accuracy 98.41% against 99.03%. Every
   disagreement was Standing/Walking; **fall recall and precision both stayed at
   1.000 and no disagreement involved the fall class at all.**
 
@@ -302,8 +316,60 @@ Both checks run in the browser on load and print to the console, and
 `scripts/selftest.py` executes them under Node so a regression fails CI rather
 than waiting to be noticed in a demo.
 
+**A seated man classified as a fall, at 99.3% confidence.** Testing the live
+tab on a laptop at a desk produced the worst possible output: *Fall Detected*,
+99.3%, on somebody sitting upright and perfectly still. The evidence panel
+showed the two detectors flatly contradicting each other — the network at 99%,
+the biomechanical rule at 0% — and one number explained both: **pelvis height
+−0.09**.
+
+MediaPipe does not decline to locate a hip it cannot see. It extrapolates one
+and reports a position outside the frame. A camera at desk height sees a torso
+and puts the hips somewhere below the bottom edge, so the single strongest fall
+cue in the model — *how low is the pelvis in the room* — reads as lower than
+the floor. Every part of the system had been built and tested on skeletons
+standing wholly inside the frame, so nothing had ever seen this and nothing
+rejected it. Reproduced synthetically: seated desk framing gave *Fall Detected*
+at 100%, and standing gave *Walking* at 98%.
+
+The fix has two halves, because there were genuinely two bugs:
+
+* **The corpus never contained the case.** Training now includes camera-framing
+  augmentation — a zoom about the chest that pushes the hips off-screen, with
+  off-frame landmarks losing visibility on a decay curve rather than being
+  deleted, since MediaPipe reports them with reduced confidence rather than not
+  at all. About 15% of the corpus is now partially framed.
+* **The rule treated missing evidence as evidence.** `biomechanical_fall_score`
+  withdraws the pelvis-height term entirely when the hips are off-frame or
+  poorly localised, instead of reading "below the floor" as maximal descent.
+  And because absence of evidence is not evidence of absence, the multiplicative
+  gate uses a *higher* floor when the measurement is missing than when it is
+  present and negative — otherwise a genuine fall filmed too close scores
+  exactly on the threshold and resolves on noise. Swept over 2 500 skeletons:
+  worth ~1.5 points of fall sensitivity at zero cost in false alarms.
+
+There were in fact *three* instances of the same mistake, and finding the third
+took measurement rather than reasoning. Leg verticality was still being trusted
+when the legs were off-frame, and every remaining false alarm on bending had a
+leg-verticality between 0.01 and 0.55 on a posture whose legs are vertical by
+construction — noise from never-observed limbs, walking in behind the pelvis
+term because the two are combined with `max()`.
+
+The fix there is judged on **visibility, not position**, and that distinction
+was worth eight points of fall sensitivity. Screening out knees below the frame
+edge as well seemed obviously right and was wrong: someone lying on the floor
+legitimately has knees at the edge, and the estimator has genuinely seen them —
+visibility 0.90 at y = 1.10. Position at the edge means the leg is *low*, which
+is evidence **for** a fall. Only invisibility means the measurement is absent.
+
+Result on the reproduction: seated desk framing goes from *Fall Detected* 100%
+to **Sitting 100%**, and across 900 non-fall poses at three framings there are
+now **zero false fall alerts** — while fall recall on a properly framed subject
+returned to **1.000**. The residual cost is stated plainly in the limitations
+above rather than averaged away.
+
 **Robustness.** Under a 14× sweep of landmark jitter, overall accuracy falls
-from 95% to 78% while **fall recall stays at 1.000**. That is the failure mode
+from 95% to 78% while **fall recall stays essentially flat**. That is the failure mode
 you want: as conditions degrade the system loses the ability to tell walking
 from standing — which nobody is paged about — long before it loses the ability
 to detect that someone is on the floor.
@@ -312,6 +378,16 @@ to detect that someone is on the floor.
 
 ## Known limitations
 
+* **Falls are harder when the subject is cropped at the waist.** If the camera
+  sits at desk height and sees only a torso, recall drops to 0.92 (n=25) against
+  1.000 when the whole body is in frame, and the *alert* rate drops further
+  (14% against 83%), because an extrapolated hip corrupts the trunk-angle
+  measurement as well as pelvis height. This is intrinsic rather than a tuning
+  failure: the strongest fall cue is where the pelvis sits in the room, and if
+  the pelvis is outside the frame that evidence does not exist. The system is
+  built to *withhold* the cue rather than invent it — see below — which costs
+  sensitivity in exchange for never crying wolf. A ceiling or wall-mounted
+  camera, which is what a real deployment uses, avoids the situation entirely.
 * **Single-person.** MediaPipe Pose tracks one subject; a second person in frame
   is ignored. Multi-resident rooms need YOLOv8-Pose or per-track cropping.
 * **No true 3D.** A fall directly toward or away from the camera foreshortens

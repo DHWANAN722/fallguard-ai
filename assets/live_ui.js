@@ -121,7 +121,7 @@ function drawOverlay(Praw, V, accent) {
 
 const CLASS_COL = {
   "Fall Detected": "#ff1f4f", "Walking": "#00e5ff", "Sitting": "#ffb300",
-  "Standing": "#8cff2b", "Normal Activity": "#b26bff",
+  "Standing": "#8cff2b", "Bending": "#b26bff",
 };
 
 function paintUI(r) {

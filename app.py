@@ -334,7 +334,7 @@ def analytics_block(detector: FallDetector, key: str) -> None:
     tiles = [
         ("Total detections", f"{s['total']}", theme.CYAN),
         ("Falls detected", f"{s['fall_frames']}", theme.RED),
-        ("Normal activity", f"{s['normal_activity_frames']}", theme.VIOLET),
+        ("Bending", f"{s['bending_frames']}", theme.VIOLET),
         ("Non-fall frames", f"{s['non_fall_frames']}", theme.LIME),
         ("Mean confidence", f"{s['mean_confidence']:.0%}", theme.AMBER),
         ("Alert frames", f"{s['alert_frames']}", theme.MAGENTA),
@@ -453,7 +453,7 @@ with tab_img:
                 for c, (lab, val, col) in zip(cols, [
                     ("Total detections", f"{s['total']}", theme.CYAN),
                     ("Falls detected", f"{s['fall_frames']}", theme.RED),
-                    ("Normal activity", f"{s['normal_activity_frames']}", theme.VIOLET),
+                    ("Bending", f"{s['bending_frames']}", theme.VIOLET),
                     ("Confidence", f"{pred.confidence:.0%}", theme.AMBER),
                     ("Alert level", LEVEL_STYLE[pred.level][0].split("—")[0].strip(),
                      LEVEL_STYLE[pred.level][1]),
@@ -844,5 +844,7 @@ Every frame passes through four stages:
 
 Stage 4 is what separates a *fall* from *bending over to pick something up* —
 the case that produces most false alarms in deployed systems, and the reason
-`Normal Activity` exists as its own class in this model.
+`Bending` exists as its own class in this model. (The brief names this
+category "Normal Activity"; it is shown as **Bending** because that is exactly
+what it models, and because a label should match what the viewer can see.)
 """)

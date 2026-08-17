@@ -66,7 +66,12 @@ L_FOOT, R_FOOT = 31, 32
 N_LANDMARKS = 33
 
 #: Canonical class order. Index == integer label everywhere in this project.
-CLASS_NAMES = ["Fall Detected", "Walking", "Sitting", "Standing", "Normal Activity"]
+#: The brief's fifth category is "Normal Activity". It is displayed as
+#: **Bending** because that is precisely what it models — bending, reaching and
+#: stooping, the hard negative for fall detection — and because a viewer
+#: watching someone bend over should see a label that matches. Same class, same
+#: index, clearer name; the mapping is documented in README.md and REPORT.md.
+CLASS_NAMES = ["Fall Detected", "Walking", "Sitting", "Standing", "Bending"]
 FALL = 0
 WALKING = 1
 SITTING = 2
@@ -385,6 +390,65 @@ def apply_camera_and_noise(
     # --- horizontal mirror about the frame centre (camera on either side) --
     if rng.random() < 0.5:
         P[:, 0] = 1.0 - P[:, 0]
+
+    # --- camera framing: the body need not be wholly inside the frame -----
+    # Trained only on full-body skeletons, the network learns "pelvis low in
+    # frame" as the dominant fall cue — and then a laptop webcam at desk
+    # height, which sees a torso and extrapolates the hips somewhere below the
+    # bottom edge, reads as maximally low and fires at 100% confidence on
+    # somebody sitting perfectly still. Measured before this existed: seated
+    # upper-body framing gave "Fall Detected" 100%, and standing gave
+    # "Walking" 98%.
+    #
+    # MediaPipe does not drop landmarks that leave the frame; it reports
+    # extrapolated coordinates outside [0, 1] and lowers their visibility. So
+    # that is what is modelled here — coordinates are NOT clipped, only
+    # devalued — which forces the network to fall back on trunk orientation
+    # and body aspect, both of which survive a crop, instead of on an absolute
+    # pelvis height that does not.
+    roll_framing = rng.random()
+    if roll_framing < 0.40:
+        shoulder = P[[L_SHOULDER, R_SHOULDER]].mean(axis=0)
+        hip = P[[L_HIP, R_HIP]].mean(axis=0)
+
+        if roll_framing < 0.18:
+            # Laptop/desk webcam: head and shoulders fill the frame and the
+            # hips are extrapolated somewhere past the bottom edge. The zoom
+            # needed is large because shoulder-to-hip spans only ~0.15 of a
+            # full-body frame but roughly half of a desk-webcam one.
+            span = max(float(abs(hip[1] - shoulder[1])), 1e-3)
+            target_y = rng.uniform(0.30, 0.55)
+            # solve for the zoom that puts the hips just off-frame, or lower
+            zoom = rng.uniform(1.0, 1.9) * (1.02 - target_y) / span
+            zoom = float(np.clip(zoom, 1.4, 6.0))
+            anchor = shoulder.copy()
+        else:
+            # Ordinary close framing: the subject simply stands near the camera
+            zoom = rng.uniform(1.2, 2.4)
+            anchor = (shoulder + hip) / 2.0
+            target_y = rng.uniform(0.36, 0.58)
+
+        target = np.array([rng.uniform(0.40, 0.60), target_y])
+        P = (P - anchor) * zoom + target
+
+        # MediaPipe does not simply mark an off-frame landmark invisible: it
+        # infers a position from the rest of the skeleton and assigns a
+        # confidence that decays with how far outside the frame it lands. A
+        # hip just past the bottom edge still scores moderately — which is
+        # precisely why such a frame passes the quality gate and reaches the
+        # classifier at all, instead of being rejected as unreliable. Modelled
+        # here as a linear decay so the corpus contains the case that actually
+        # occurs rather than a cleaner one that does not.
+        dist = np.maximum.reduce([
+            P[:, 1] - 1.0, -P[:, 1], P[:, 0] - 1.0, -P[:, 0],
+            np.zeros(len(P)),
+        ])
+        outside = dist > 0
+        if outside.any():
+            decay = np.clip(1.0 - dist[outside] / 0.35, 0.0, 1.0)
+            vis[outside] = np.clip(
+                0.08 + 0.62 * decay + rng.normal(0, 0.06, size=int(outside.sum())),
+                0.02, 0.85)
 
     # --- pose-estimator landmark jitter -----------------------------------
     sigma = jitter if jitter is not None else rng.uniform(0.003, 0.016)
