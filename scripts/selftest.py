@@ -436,38 +436,38 @@ def main() -> None:
           + ("" if len(pinned) == len(reqs)
              else f" — loose: {[r for r in reqs if '==' not in r]}"))
 
-    pkgs_path = os.path.join(ROOT, "packages.txt")
-    check("packages.txt exists (apt deps for Streamlit Cloud)",
-          os.path.exists(pkgs_path))
-    if os.path.exists(pkgs_path):
-        # Parsed EXACTLY as Streamlit Cloud parses it: every non-empty line is
-        # handed to `apt-get install` verbatim. It does NOT strip `#` comments.
-        #
-        # The first version of this file carried a long explanatory header and
-        # took the deployment down harder than the bug it was fixing — apt tried
-        # to install packages named "Every", "OpenCV", "headless" and failed,
-        # which aborted the whole install step. An earlier version of THIS CHECK
-        # did `ln.split("#")[0]`, so it was more permissive than the real
-        # consumer and reported a cheerful PASS on a file that could not work.
-        #
-        # A test that models the consumer more leniently than the consumer is
-        # worse than no test: it converts a loud failure into a false sense of
-        # safety. So the rule here is the actual rule — bare package names only.
-        with open(pkgs_path) as fh:
-            apt_lines = [ln.rstrip("\n") for ln in fh if ln.strip()]
-        apt = set(apt_lines)
+    # No packages.txt, deliberately. Two attempts to harden this with apt both
+    # broke the build worse than the bug:
+    #
+    #   1. The file carried an explanatory header. Streamlit Cloud passes every
+    #      non-empty line to `apt-get install` and does NOT strip `#`, so apt
+    #      tried to install packages named "Every", "OpenCV" and "headless".
+    #   2. Stripped to bare names, `libglib2.0-0` was then unsatisfiable — the
+    #      base image had moved to Debian trixie, where that package is renamed
+    #      (libglib2.0-0t64) and its libffi7/libpcre3 dependencies no longer
+    #      exist. "held broken packages", install aborted.
+    #
+    # Both failures came from pinning to a host image this project does not
+    # control and cannot test against. The version pin below is the actual fix,
+    # and it needs no apt at all — so the guard now enforces the mechanism that
+    # makes it work rather than a guess about somebody else's base image.
+    check("no packages.txt (apt pinning proved more fragile than the bug)",
+          not os.path.exists(os.path.join(ROOT, "packages.txt")))
 
-        bad = [ln for ln in apt_lines
-               if not re.fullmatch(r"[a-z0-9][a-z0-9+._-]*", ln)]
-        check("packages.txt contains only bare apt package names",
-              not bad,
-              "no comments, no blank-line cruft" if not bad
-              else f"apt would try to install these literally: {bad[:6]}")
-
-        # a GUI OpenCV needs both; without them `import cv2` aborts at startup
-        for lib in ("libgl1", "libglib2.0-0"):
-            check(f"apt package '{lib}' declared", lib in apt,
-                  "" if lib in apt else "the exact library the outage was missing")
+    # THE mechanism. Every OpenCV distribution unpacks into the same `cv2/`
+    # directory, so whichever is installed last wins. At the SAME version the
+    # file layouts are identical and the last write (opencv-python-headless, a
+    # direct requirement, installed after transitive deps) overwrites the
+    # contrib build completely. At DIFFERENT versions the extension module is
+    # named differently — cv2.cpython-3XX-<plat>.so in 4.x versus cv2.abi3.so
+    # in 5.x — so neither fully overwrites the other, a mixture is left on
+    # disk, and the GUI build can win the import. That mixture is what took the
+    # app down. Equal versions is not a tidiness preference; it is the property
+    # that makes the outcome deterministic.
+    cv = {k: v for k, v in pinned.items() if k.startswith("opencv")}
+    check("both OpenCV distributions pinned to the SAME version",
+          len(cv) == 2 and len(set(cv.values())) == 1,
+          ", ".join(f"{k}=={v}" for k, v in cv.items()) or "none pinned")
 
     # The real guard: walk what the pinned packages themselves require, and
     # fail on any UNBOUNDED dependency that is not pinned here. An unbounded

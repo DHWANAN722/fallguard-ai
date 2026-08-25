@@ -409,24 +409,30 @@ Fixed on both sides, because either alone leaves a gap:
   *this* OpenCV's `LINE_AA`, and a silent change there would not crash anything
   — it would just quietly degrade every tensor the CNN sees, which is far
   harder to notice.
-* `packages.txt` installs `libgl1` and `libglib2.0-0`, so if any OpenCV variant
-  ever wins the install race again, the import still succeeds.
+* Crucially, **both** OpenCV distributions are pinned to the *same* version.
+  They share one `cv2/` directory, so whichever installs last wins. At equal
+  versions the file layouts match and `opencv-python-headless` — a direct
+  requirement, installed after transitive dependencies — overwrites the contrib
+  build completely. At different versions the extension module has a different
+  filename (`cv2.cpython-3XX-<plat>.so` in 4.x versus `cv2.abi3.so` in 5.x), so
+  neither overwrites the other, a mixture is left on disk, and the GUI build can
+  win the import. That mixture was the outage.
 
-The first attempt at that second file took the deployment down harder than the
-bug it was fixing. **Streamlit Cloud passes every non-empty line of
-`packages.txt` straight to `apt-get install` and does not strip `#` comments**,
-so a carefully written explanatory header became a list of package names — apt
-tried to install `Every`, `OpenCV` and `headless`, failed, and aborted the whole
-install step.
+**What did not work, twice.** The obvious hardening was a `packages.txt` telling
+Streamlit Cloud to `apt-get install libgl1 libglib2.0-0`, so that any OpenCV
+variant would import. It broke the deployment twice:
 
-The instructive part is not the typo, it is that the self-test had reported
-PASS. It parsed the file with `line.split("#")[0]`, which is what a *reasonable*
-reader does, and therefore modelled the consumer more leniently than the
-consumer. **A test that is more forgiving than production converts a loud
-failure into a false sense of safety**, which is strictly worse than having no
-test. It now parses the file exactly as apt receives it and rejects anything
-that is not a bare package name — verified by feeding it the file that broke the
-deploy and watching it fail.
+1. The file carried an explanatory comment header. **Streamlit Cloud passes
+   every non-empty line straight to `apt-get` and does not strip `#`**, so apt
+   tried to install packages named `Every`, `OpenCV` and `headless`, failed, and
+   aborted the whole install.
+2. Stripped to bare names, `libglib2.0-0` was then unsatisfiable: the base image
+   had moved to Debian trixie, where it is renamed `libglib2.0-0t64` and its
+   `libffi7`/`libpcre3` dependencies no longer exist. `held broken packages`.
+
+Both failures came from pinning against a host image this project does not
+control and cannot test locally. The version pin needs no apt at all, so
+`packages.txt` was removed — the belt-and-braces was less reliable than the belt.
 
 And because a fix nobody checks is a fix that rots, `scripts/selftest.py [11]`
 walks the dependency graph of every pinned package and **fails** on any

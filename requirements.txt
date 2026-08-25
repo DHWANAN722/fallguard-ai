@@ -40,9 +40,28 @@
 #                        crash — it would just quietly get worse, which is
 #                        harder to notice and much harder to debug.
 #
-# See packages.txt for the belt-and-braces half of this fix, and
-# scripts/selftest.py [11] for the regression guard that fails the build if an
-# unbounded transitive dependency ever reappears.
+#                        Both OpenCV distributions are pinned to the SAME
+#                        version on purpose. They unpack into one shared `cv2/`
+#                        directory, so whichever installs last wins. At equal
+#                        versions the layouts match and opencv-python-headless
+#                        — a direct requirement, installed after transitive
+#                        deps — overwrites the contrib build completely. At
+#                        different versions the extension module has a
+#                        different filename (cv2.cpython-3XX-<plat>.so in 4.x
+#                        vs cv2.abi3.so in 5.x), so neither overwrites the
+#                        other, a mixture is left on disk, and the GUI build
+#                        can win the import. That mixture is what took the app
+#                        down.
+#
+# There is deliberately NO packages.txt. Two attempts to harden this with apt
+# both broke the build worse than the bug: Streamlit Cloud does not strip `#`
+# comments from that file, and once stripped, `libglib2.0-0` was unsatisfiable
+# on the Debian trixie base image. Pinning to somebody else's host image is
+# guesswork this project cannot test; the version pin above needs no apt.
+#
+# scripts/selftest.py [11] is the regression guard: it fails if an unbounded
+# native transitive dependency reappears, if the two OpenCV pins ever drift
+# apart, or if requirements.txt stops resolving.
 #
 # TensorFlow is deliberately ABSENT. The CNN is trained with Keras in the
 # notebook, then exported to plain NumPy weights (models/fallguard_cnn.npz) and
