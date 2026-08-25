@@ -406,6 +406,114 @@ def main() -> None:
         else:
             print("       (node unavailable — port executed only in the browser)")
 
+    # ------------------------------------------------- deployment integrity
+    # This section exists because the deployed app died with an ImportError on
+    # `import cv2` while every file in this repository stayed byte-identical.
+    # mediapipe declares `opencv-contrib-python` with no upper bound, OpenCV
+    # 5.0.0.93 was published, the container was rebuilt, and pip helpfully took
+    # the new major version — whose GUI build needs a libGL that Streamlit
+    # Cloud does not have.
+    #
+    # Pinning the direct requirements was never enough to prevent that: the
+    # danger lives in what those pins *drag in*. So the guard checks the
+    # transitive edges, which is where the bug actually was.
+    print("\n[11] deployment integrity — an app that runs today should run in a month")
+    import re
+
+    req_path = os.path.join(ROOT, "requirements.txt")
+    with open(req_path) as fh:
+        req_lines = [ln.split("#")[0].strip() for ln in fh]
+    reqs = [ln for ln in req_lines if ln]
+    pinned = {}
+    for ln in reqs:
+        mt = re.match(r"^([A-Za-z0-9._-]+)\s*==\s*([^\s;]+)$", ln)
+        if mt:
+            pinned[mt.group(1).lower().replace("_", "-")] = mt.group(2)
+
+    check("every direct requirement is pinned with ==",
+          len(pinned) == len(reqs),
+          f"{len(pinned)}/{len(reqs)} pinned"
+          + ("" if len(pinned) == len(reqs)
+             else f" — loose: {[r for r in reqs if '==' not in r]}"))
+
+    pkgs_path = os.path.join(ROOT, "packages.txt")
+    check("packages.txt exists (apt deps for Streamlit Cloud)",
+          os.path.exists(pkgs_path))
+    if os.path.exists(pkgs_path):
+        with open(pkgs_path) as fh:
+            apt = {ln.split("#")[0].strip() for ln in fh if ln.split("#")[0].strip()}
+        # a GUI OpenCV needs both; without them `import cv2` aborts at startup
+        for lib in ("libgl1", "libglib2.0-0"):
+            check(f"apt package '{lib}' declared", lib in apt,
+                  "" if lib in apt else "the exact library the outage was missing")
+
+    # The real guard: walk what the pinned packages themselves require, and
+    # fail on any UNBOUNDED dependency that is not pinned here. An unbounded
+    # edge is a promise that some future release of a package nobody in this
+    # repository chose will keep working — which is the promise that broke.
+    import importlib.metadata as md
+    from packaging.requirements import Requirement
+
+    unbounded = {}
+    for name in sorted(pinned):
+        try:
+            deps = md.requires(name) or []
+        except md.PackageNotFoundError:
+            continue
+        for raw in deps:
+            try:
+                r = Requirement(raw)
+            except Exception:
+                continue
+            if r.marker is not None and not r.marker.evaluate():
+                continue            # extras / platform-specific, not installed
+            dep = r.name.lower().replace("_", "-")
+            if not r.specifier and dep not in pinned:
+                unbounded.setdefault(dep, []).append(name)
+
+    # Native packages are the ones that can actually take the app down, because
+    # they carry shared objects that must find system libraries at import time.
+    risky = {d: v for d, v in unbounded.items()
+             if any(k in d for k in ("opencv", "cv2", "torch", "tensorflow",
+                                     "pyqt", "pyside", "vtk", "wx"))}
+    check("no unpinned native transitive dependency (the outage class)",
+          not risky,
+          "clean" if not risky
+          else "; ".join(f"{d} (pulled in by {', '.join(v)})"
+                         for d, v in risky.items()))
+
+    check("opencv is pinned to the 4.x line the rasteriser was fitted against",
+          all(v.startswith("4.") for k, v in pinned.items() if "opencv" in k)
+          and any("opencv-contrib" in k for k in pinned),
+          ", ".join(f"{k}=={v}" for k, v in pinned.items() if "opencv" in k))
+
+    if unbounded:
+        print(f"       (note: {len(unbounded)} pure-python transitive deps are "
+              "unbounded — lower risk, listed for awareness)")
+
+    # ...and prove the pins still form a solvable set, rather than trusting it.
+    try:
+        dry = subprocess.run(
+            [sys.executable, "-m", "pip", "install", "--dry-run", "--quiet",
+             "--report", os.path.join(ROOT, "reports", "_pipreport.json"),
+             "-r", req_path],
+            capture_output=True, text=True, timeout=240)
+        rep = os.path.join(ROOT, "reports", "_pipreport.json")
+        got = {}
+        if os.path.exists(rep):
+            with open(rep) as fh:
+                for item in json.load(fh).get("install", []):
+                    got[item["metadata"]["name"].lower()] = item["metadata"]["version"]
+            os.remove(rep)
+        bad = {n: v for n, v in got.items() if "opencv" in n and not v.startswith("4.")}
+        check("requirements.txt still resolves, with no OpenCV 5.x",
+              dry.returncode == 0 and not bad,
+              "resolved" if dry.returncode == 0 and not bad
+              else (f"would install {bad}" if bad
+                    else dry.stderr.strip().splitlines()[-1:] or "pip failed"))
+    except (subprocess.TimeoutExpired, FileNotFoundError) as exc:
+        print(f"       (dependency resolution not checked: {exc})")
+
     # --------------------------------------------------------------- done
     print("\n" + "=" * 74)
     if failures:

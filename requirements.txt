@@ -15,6 +15,34 @@
 #   numpy <2           — mediapipe 0.10.x is not built against the NumPy 2 ABI.
 #   opencv ...-headless — the non-headless build needs libGL, which is absent
 #                        from the Streamlit Cloud image.
+#   opencv-contrib-python 4.10.0.84
+#                      — PINNED BECAUSE IT TOOK THE APP DOWN IN PRODUCTION.
+#                        mediapipe declares this dependency with no upper
+#                        bound. OpenCV 5.0.0.93 was published, the container
+#                        was rebuilt, pip took the new major version, and
+#                        `import cv2` started failing on a missing libGL.so.1
+#                        — with no change to this repository at all.
+#
+#                        Every OpenCV wheel unpacks into the same `cv2/`
+#                        directory, so pinning opencv-python-headless below is
+#                        not sufficient on its own: whichever wheel is
+#                        installed last wins, and the contrib build is the GUI
+#                        one. Pinning BOTH keeps a single, consistent 4.x
+#                        install regardless of resolution order.
+#
+#                        There is a second reason to stay on 4.x. The browser
+#                        rasteriser in assets/live_monitor.js reproduces
+#                        `cv2.line(..., 2, LINE_AA)` arithmetically, and its
+#                        capsule radius (1.65 px) was fitted by measuring THIS
+#                        OpenCV version. A major-version bump could change the
+#                        antialiasing and silently shift every tensor the CNN
+#                        sees away from what it was trained on. That would not
+#                        crash — it would just quietly get worse, which is
+#                        harder to notice and much harder to debug.
+#
+# See packages.txt for the belt-and-braces half of this fix, and
+# scripts/selftest.py [11] for the regression guard that fails the build if an
+# unbounded transitive dependency ever reappears.
 #
 # TensorFlow is deliberately ABSENT. The CNN is trained with Keras in the
 # notebook, then exported to plain NumPy weights (models/fallguard_cnn.npz) and
@@ -26,6 +54,7 @@ mediapipe==0.10.18
 protobuf==4.25.8
 numpy==1.26.4
 opencv-python-headless==4.10.0.84
+opencv-contrib-python==4.10.0.84
 pillow==10.4.0
 pandas==2.2.3
 plotly==5.24.1

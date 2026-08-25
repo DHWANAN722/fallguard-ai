@@ -376,6 +376,51 @@ to detect that someone is on the floor.
 
 ---
 
+## The app broke without anyone touching it
+
+Weeks after deployment the live app died on `import cv2`. Every file in this
+repository was byte-identical to the version that had been working. The cause
+was upstream:
+
+```
+mediapipe 0.10.18  requires  opencv-contrib-python      ← no upper bound
+                             opencv-contrib-python 5.0.0.93 published
+                             container rebuilt → pip takes the new major
+                             → cv2/qt/plugins/platforms/libqxcb.so
+                             → needs libGL.so.1, absent on Streamlit Cloud
+                             → ImportError, app down
+```
+
+`opencv-python-headless` was already pinned, and that turned out to be no
+defence. **Every OpenCV wheel unpacks into the same `cv2/` directory**, so
+whichever is installed last wins — and pip still had to satisfy MediaPipe's
+`opencv-contrib-python`, which is the GUI build. The pin was real; it was just
+pinning the wrong end of the problem.
+
+The lesson is that pinning direct requirements says nothing about what those
+requirements *drag in*, and an unbounded transitive edge is a standing promise
+that some future release of a package nobody here chose will keep working.
+
+Fixed on both sides, because either alone leaves a gap:
+
+* `requirements.txt` pins `opencv-contrib-python` to the 4.x line, so the
+  unbounded edge cannot jump a major version again. There is a second reason to
+  stay on 4.x: the browser rasteriser's capsule radius was fitted by measuring
+  *this* OpenCV's `LINE_AA`, and a silent change there would not crash anything
+  — it would just quietly degrade every tensor the CNN sees, which is far
+  harder to notice.
+* `packages.txt` installs `libgl1` and `libglib2.0-0`, so if any OpenCV variant
+  ever wins the install race again, the import still succeeds.
+
+And because a fix nobody checks is a fix that rots, `scripts/selftest.py [11]`
+walks the dependency graph of every pinned package and **fails** on any
+unbounded native transitive dependency, then runs `pip install --dry-run` to
+confirm the set still resolves with no OpenCV 5.x. Removing the pin makes it
+fail with `opencv-contrib-python (pulled in by mediapipe)` — verified by
+actually reintroducing the bug, not by assuming.
+
+---
+
 ## Known limitations
 
 * **Falls are harder when the subject is cropped at the waist.** If the camera

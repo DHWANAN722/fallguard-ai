@@ -1,0 +1,36 @@
+# System (apt) packages installed by Streamlit Community Cloud before pip runs.
+#
+# WHY THIS FILE EXISTS
+#
+# The app died in production with `ImportError` on `import cv2` after having
+# worked for weeks. Nothing in this repository changed. What changed was PyPI:
+#
+#   mediapipe 0.10.18 declares `opencv-contrib-python` with NO version bound.
+#   OpenCV 5.0.0.93 was published. The next time Streamlit Cloud rebuilt the
+#   container, pip resolved that unbounded dependency to the new major version.
+#
+# Every OpenCV wheel — headless or not — unpacks into the SAME `cv2/` package
+# directory, so whichever is installed last wins. `opencv-python-headless` is
+# pinned in requirements.txt, but pip also had to satisfy mediapipe's
+# `opencv-contrib-python`, and that build is the GUI one: it ships
+# `cv2/qt/plugins/platforms/libqxcb.so`, which links libGL.so.1 and
+# libglib-2.0.so.0. Neither library is present in the Streamlit Cloud image, so
+# the import failed at load time and took the whole app down.
+#
+# Two independent fixes, because one is not enough:
+#
+#   1. requirements.txt now pins opencv-contrib-python to the 4.x line, so the
+#      unbounded transitive dependency cannot silently jump a major version
+#      again. That addresses the cause.
+#
+#   2. This file installs the libraries a GUI OpenCV build needs anyway. That
+#      addresses the consequence — if any OpenCV variant ever wins the install
+#      race again, `import cv2` still succeeds instead of hard-failing at
+#      startup.
+#
+# Fix 1 alone would leave the app one dependency-graph change away from the
+# same outage. Fix 2 alone would paper over a silent major-version upgrade of
+# the library that renders the CNN's input tensor. Both are wanted.
+
+libgl1
+libglib2.0-0
