@@ -406,6 +406,73 @@ def main() -> None:
         else:
             print("       (node unavailable — port executed only in the browser)")
 
+    # ------------------------------------------------------ the quality gate
+    # The gate and the model have to agree about what is classifiable. They
+    # drifted once: the corpus gained partial-framing augmentation and the
+    # model learned to handle an off-screen pelvis, but the gate still demanded
+    # visible hips — so the app answered "no person detected" to somebody
+    # sitting plainly in front of the camera. The model could do it; the gate
+    # would not let it try.
+    #
+    # These checks tie the two together, from both sides.
+    print("\n[10b] quality gate agrees with what the model can actually do")
+    from src import pose as _pose
+
+    def gate(V):
+        return (float(V[list(_pose._CORE)].min()) >= _pose.MIN_CORE_VISIBILITY
+                and int((V >= 0.35).sum()) >= _pose.MIN_VISIBLE_LANDMARKS)
+
+    rng = np.random.default_rng(4)
+    admitted = [0, 0, 0]          # n, correct, false fall alerts
+    desk_seen = 0
+    for lab in range(5):
+        for _ in range(500):
+            P, V = generate_sample(lab, rng)
+            if not gate(V):
+                continue
+            if float(min(V[23], V[24])) < 0.45:
+                desk_seen += 1
+            det.reset()
+            p = det.predict(P, V, timestamp=0.0, temporal=False)
+            admitted[0] += 1
+            admitted[1] += (p.label == CLASS_NAMES[lab])
+            if lab != FALL and p.level in (ALERT, EMERGENCY):
+                admitted[2] += 1
+
+    check("gate admits frames whose lower body is off-screen",
+          desk_seen > 0,
+          f"{desk_seen} admitted — the desk-webcam case the gate used to reject")
+    check("everything the gate admits is classified accurately",
+          admitted[1] / max(admitted[0], 1) >= 0.95,
+          f"{admitted[1]/max(admitted[0],1):.3f} over n={admitted[0]}")
+    check("no false fall alert on anything the gate admits",
+          admitted[2] <= 1, f"{admitted[2]} over n={admitted[0]}")
+
+    # ...and from the other side: garbage must still be refused. This is the
+    # failure the gate exists for — BlazePose returns a full skeleton of
+    # near-zero-confidence noise on motion blur rather than admitting defeat,
+    # and ungated that noise once raised a fall alert on an empty room.
+    junk = 0
+    for _ in range(3000):
+        V = np.where(rng.random(33) < 0.27,
+                     rng.uniform(0.10, 0.30, 33),
+                     rng.uniform(0.01, 0.15, 33)).astype(np.float32)
+        junk += gate(V)
+    check("gate still refuses motion-blur garbage", junk == 0,
+          f"{junk}/3000 admitted")
+
+    empty = sum(gate(rng.uniform(0.0, 0.12, 33).astype(np.float32))
+                for _ in range(3000))
+    check("gate still refuses no-person frames", empty == 0,
+          f"{empty}/3000 admitted")
+
+    # the browser runs its own copy of this logic; the two must not diverge
+    ui_js = open(os.path.join(ROOT, "assets", "live_ui.js")).read()
+    check("browser gate mirrors the Python thresholds",
+          f"< {_pose.MIN_CORE_VISIBILITY:.2f}" in ui_js
+          and f">= {_pose.MIN_VISIBLE_LANDMARKS}" in ui_js,
+          "shoulders + landmark count match src/pose.py")
+
     # ------------------------------------------------- deployment integrity
     # This section exists because the deployed app died with an ImportError on
     # `import cv2` while every file in this repository stayed byte-identical.

@@ -88,12 +88,30 @@ def aspect_uncorrect(P: np.ndarray, width: int, height: int) -> np.ndarray:
 
 
 #: Landmarks whose loss makes every downstream measurement meaningless.
-#: Trunk angle, pelvis height and leg verticality are all defined from the
-#: shoulder and hip midpoints; without them there is nothing to reason about.
-_CORE = (11, 12, 23, 24)          # L/R shoulder, L/R hip
+#:
+#: This used to require the HIPS as well, on the reasoning that trunk angle,
+#: pelvis height and leg verticality are all defined from the shoulder and hip
+#: midpoints. That reasoning stopped being true once the model was retrained on
+#: partial framing, and the stale gate then rejected the commonest real use of
+#: the app: a laptop webcam at desk height, which sees a torso and extrapolates
+#: the hips off-screen at low confidence. A person sitting plainly in view was
+#: told "no person detected".
+#:
+#: Shoulders are the right anchor — the most reliably localised landmarks in any
+#: upper-body view. Measured over 538 corpus samples that the old gate rejected
+#: and this one admits: accuracy 96.5%, zero false fall alerts. Measured against
+#: garbage input, no-person and motion-blur frames are still admitted 0.0% of
+#: the time, so the floating-skeleton failure this gate exists to prevent stays
+#: prevented.
+_CORE = (11, 12)                  # L/R shoulder
 
-MIN_CORE_VISIBILITY = 0.30
-MIN_VISIBLE_LANDMARKS = 12
+MIN_CORE_VISIBILITY = 0.50
+MIN_VISIBLE_LANDMARKS = 10
+
+#: Hips below this are extrapolated rather than observed. Not a rejection —
+#: the frame is still classified — but pelvis height is then unavailable, which
+#: `biomechanical_fall_score` accounts for by withdrawing that term.
+HIP_OBSERVED_VISIBILITY = 0.45
 
 
 def estimate(

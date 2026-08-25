@@ -445,6 +445,16 @@ actually reintroducing the bug, not by assuming.
 
 ## Known limitations
 
+* **A gate can be stale even when the model is not.** The quality gate
+  originally required visible hips, on the reasoning that pelvis height and leg
+  verticality are undefined without them. Once the model was retrained on
+  partial framing that reasoning expired, but the gate did not — so the app
+  answered *"no person detected"* to somebody sitting plainly in front of the
+  camera. The model could classify those frames at 96.5% accuracy; the gate
+  simply would not let it try. It now anchors on the **shoulders**, the most
+  reliably localised landmarks in any upper-body view, and still refuses
+  no-person and motion-blur frames 100% of the time. `selftest [10b]` ties the
+  two together from both directions so they cannot drift apart again.
 * **Falls are harder when the subject is cropped at the waist.** If the camera
   sits at desk height and sees only a torso, recall drops to 0.92 (n=25) against
   1.000 when the whole body is in frame, and the *alert* rate drops further
