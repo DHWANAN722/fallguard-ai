@@ -412,6 +412,22 @@ Fixed on both sides, because either alone leaves a gap:
 * `packages.txt` installs `libgl1` and `libglib2.0-0`, so if any OpenCV variant
   ever wins the install race again, the import still succeeds.
 
+The first attempt at that second file took the deployment down harder than the
+bug it was fixing. **Streamlit Cloud passes every non-empty line of
+`packages.txt` straight to `apt-get install` and does not strip `#` comments**,
+so a carefully written explanatory header became a list of package names — apt
+tried to install `Every`, `OpenCV` and `headless`, failed, and aborted the whole
+install step.
+
+The instructive part is not the typo, it is that the self-test had reported
+PASS. It parsed the file with `line.split("#")[0]`, which is what a *reasonable*
+reader does, and therefore modelled the consumer more leniently than the
+consumer. **A test that is more forgiving than production converts a loud
+failure into a false sense of safety**, which is strictly worse than having no
+test. It now parses the file exactly as apt receives it and rejects anything
+that is not a bare package name — verified by feeding it the file that broke the
+deploy and watching it fail.
+
 And because a fix nobody checks is a fix that rots, `scripts/selftest.py [11]`
 walks the dependency graph of every pinned package and **fails** on any
 unbounded native transitive dependency, then runs `pip install --dry-run` to

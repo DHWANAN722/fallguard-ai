@@ -440,8 +440,30 @@ def main() -> None:
     check("packages.txt exists (apt deps for Streamlit Cloud)",
           os.path.exists(pkgs_path))
     if os.path.exists(pkgs_path):
+        # Parsed EXACTLY as Streamlit Cloud parses it: every non-empty line is
+        # handed to `apt-get install` verbatim. It does NOT strip `#` comments.
+        #
+        # The first version of this file carried a long explanatory header and
+        # took the deployment down harder than the bug it was fixing — apt tried
+        # to install packages named "Every", "OpenCV", "headless" and failed,
+        # which aborted the whole install step. An earlier version of THIS CHECK
+        # did `ln.split("#")[0]`, so it was more permissive than the real
+        # consumer and reported a cheerful PASS on a file that could not work.
+        #
+        # A test that models the consumer more leniently than the consumer is
+        # worse than no test: it converts a loud failure into a false sense of
+        # safety. So the rule here is the actual rule — bare package names only.
         with open(pkgs_path) as fh:
-            apt = {ln.split("#")[0].strip() for ln in fh if ln.split("#")[0].strip()}
+            apt_lines = [ln.rstrip("\n") for ln in fh if ln.strip()]
+        apt = set(apt_lines)
+
+        bad = [ln for ln in apt_lines
+               if not re.fullmatch(r"[a-z0-9][a-z0-9+._-]*", ln)]
+        check("packages.txt contains only bare apt package names",
+              not bad,
+              "no comments, no blank-line cruft" if not bad
+              else f"apt would try to install these literally: {bad[:6]}")
+
         # a GUI OpenCV needs both; without them `import cv2` aborts at startup
         for lib in ("libgl1", "libglib2.0-0"):
             check(f"apt package '{lib}' declared", lib in apt,
